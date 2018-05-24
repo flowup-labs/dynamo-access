@@ -1,0 +1,20 @@
+version: '2'
+services:
+  service:
+    image: flowup/godev
+    volumes:
+      - .:/go/src/github.com/flowup-labs/dynamoAccess
+    working_dir: /go/src/github.com/flowup-labs/dynamoAccess
+    command: goconvey -timeout 60s -host 0.0.0.0
+    networks:
+      - same_network
+    ports:
+      - 8080:8080
+  dynamodb:
+    image: dwmkerr/dynamodb
+    networks:
+      - same_network
+    ports:
+      - 8000:8000
+networks:
+  same_network:
