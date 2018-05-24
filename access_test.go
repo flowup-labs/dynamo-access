@@ -32,9 +32,9 @@ func (t *AccessSuite) SetupSuite() {
 
 func (t *AccessSuite) SetupTest() {
 
-	t.access.DropTables(&Aaa{}, &Ccc{}, &Bbb{})
+	t.access.DropTables(&aaa{}, &ccc{}, &bbb{})
 
-	t.access.CreateTables(&Aaa{}, &Ccc{}, &Bbb{})
+	t.access.CreateTables(&aaa{}, &ccc{}, &bbb{})
 
 }
 
@@ -45,19 +45,19 @@ func (t *AccessSuite) TestReflect() {
 		expectedErr  error
 	}{
 		{
-			item:         &[]Aaa{},
-			expectedName: "Aaa",
+			item:         &[]aaa{},
+			expectedName: "aaa",
 			expectedErr:  nil,
 		},
 
 		{
-			item:         &[]*Aaa{},
-			expectedName: "Aaa",
+			item:         &[]*aaa{},
+			expectedName: "aaa",
 			expectedErr:  nil,
 		},
 		{
-			item:         &Aaa{},
-			expectedName: "Aaa",
+			item:         &aaa{},
+			expectedName: "aaa",
 			expectedErr:  nil,
 		},
 	}
@@ -71,13 +71,13 @@ func (t *AccessSuite) TestReflect() {
 
 func (t *AccessSuite) TestCreateItem() {
 
-	a := &Aaa{
-		Aa: "Aaa",
+	a := &aaa{
+		Aa: "aaa",
 		Ab: "Aab",
-		Ac: []Bbb{
+		Ac: []bbb{
 			{
 				Ba: "Bba",
-				Bb: []Ddd{
+				Bb: []ddd{
 					{
 						Da: "Dda",
 					},
@@ -94,16 +94,15 @@ func (t *AccessSuite) TestCreateItem() {
 	}
 }
 
-
 func (t *AccessSuite) TestFindOneItem() {
 
-	a := &Aaa{
+	a := &aaa{
 		Aa: "Aa",
 		Ab: "Ab",
-		Ac: []Bbb{
+		Ac: []bbb{
 			{
 				Ba: "Ba",
-				Bb: []Ddd{
+				Bb: []ddd{
 					{
 						Da: "Da",
 					},
@@ -120,7 +119,7 @@ func (t *AccessSuite) TestFindOneItem() {
 	}
 
 	// find item
-	item := Aaa{}
+	item := aaa{}
 	if err := t.access.FindByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
@@ -131,13 +130,13 @@ func (t *AccessSuite) TestFindOneItem() {
 
 func (t *AccessSuite) TestUpdateItem() {
 
-	a := &Aaa{
+	a := &aaa{
 		Aa: "Aa",
 		Ab: "Ab",
-		Ac: []Bbb{
+		Ac: []bbb{
 			{
 				Ba: "Ba",
-				Bb: []Ddd{
+				Bb: []ddd{
 					{
 						Da: "Da",
 					},
@@ -159,7 +158,7 @@ func (t *AccessSuite) TestUpdateItem() {
 	}
 
 	// find item
-	item := Aaa{}
+	item := aaa{}
 	if err := t.access.FindByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
@@ -170,7 +169,7 @@ func (t *AccessSuite) TestUpdateItem() {
 
 func (t *AccessSuite) TestFindOneItemByIndex() {
 	//create item
-	c := &Ccc{
+	c := &ccc{
 		Ca:  "Ca",
 		DId: "",
 	}
@@ -189,7 +188,7 @@ func (t *AccessSuite) TestFindOneItemByIndex() {
 	}
 
 	// find item
-	items := []Ccc{}
+	items := []ccc{}
 	if err := t.access.FindByAttribute(&items, "dId", c.DId); err != nil {
 		t.Nil(err)
 	}
@@ -199,16 +198,16 @@ func (t *AccessSuite) TestFindOneItemByIndex() {
 
 func (t *AccessSuite) TestCreateRelationship() {
 
-	a := Aaa{
+	a := aaa{
 		Aa: "Aa",
 		Ab: "Ab",
 	}
 
 	t.Nil(t.access.Create(&a))
 
-	b := Bbb{
+	b := bbb{
 		Ba: "Ba",
-		Bb: []Ddd{
+		Bb: []ddd{
 			{
 				Da: "Da",
 			},
@@ -221,7 +220,7 @@ func (t *AccessSuite) TestCreateRelationship() {
 
 	t.Nil(t.access.Create(&b))
 
-	item := Bbb{}
+	item := bbb{}
 	if err := t.access.FindByAttribute(&item, "cId", a.Id); err != nil {
 		t.Nil(err)
 	}

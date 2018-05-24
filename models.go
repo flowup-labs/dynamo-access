@@ -7,30 +7,30 @@ type Model struct {
 	Deleted int64  `json:"deleted"`
 }
 
-type Aaa struct {
+type aaa struct {
 	Model
 
 	Aa string `json:"aaa"`
 	Ab string `json:"aab"`
-	Ac []Bbb  `json:"aac"`
+	Ac []bbb  `json:"aac"`
 }
 
-type Bbb struct {
+type bbb struct {
 	Model
 
 	Ba  string `json:"bba"`
-	Bb  []Ddd  `json:"bbb"`
+	Bb  []ddd  `json:"bbb"`
 	CId string `json:"cId"`
 }
 
-type Ccc struct {
+type ccc struct {
 	Model
 
 	Ca  string `json:"cca"`
 	DId string `json:"dId"`
 }
 
-type Ddd struct {
+type ddd struct {
 	Model
 
 	Da string `json:"dda"`
