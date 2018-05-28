@@ -1,4 +1,4 @@
-package database
+package godynamo
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -171,6 +171,10 @@ func (a *dynamoAccess) nameOfFields(item interface{}, names []expression.NameBui
 
 // FindByAttribute, find item by attribute
 func (a *dynamoAccess) FindByAttribute(item interface{}, key, value string) error {
+	return a.FindCustom(item, expression.Name(key).Equal(expression.Value(value)))
+}
+
+func (a *dynamoAccess) FindCustom(item interface{}, filt expression.ConditionBuilder) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -179,7 +183,6 @@ func (a *dynamoAccess) FindByAttribute(item interface{}, key, value string) erro
 	nameBuilder := []expression.NameBuilder{}
 	nameBuilder = a.nameOfFields(item, nameBuilder)
 
-	filt := expression.Name(key).Equal(expression.Value(value))
 	proj := expression.ProjectionBuilder{}
 
 	for _, name := range nameBuilder {

@@ -1,4 +1,4 @@
-package database
+package godynamo
 
 import (
 	"github.com/stretchr/testify/suite"
@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 )
 
 type AccessSuite struct {
@@ -194,6 +195,65 @@ func (t *AccessSuite) TestFindOneItemByIndex() {
 	}
 
 	t.Len(items, 2)
+}
+
+func (t *AccessSuite) TestFindByNestedId() {
+	//create item
+	a := &aaa{
+		Aa: "Aa",
+		Ac: []bbb{
+			{
+				Ba: "foo1",
+				Bc: []string{
+					"bar2",
+					"var3",
+					"foo4",
+				},
+			},
+			{
+				Ba: "bar5",
+			},
+			{
+				Ba: "var6",
+			},
+		},
+		Ad: []string{
+			"bar7",
+			"var8",
+			"foo9",
+		},
+		Ae: map[string]bbb{
+			"bar10": bbb{
+				Ba: "bubu",
+			},
+		},
+	}
+	if err := t.access.Create(a); err != nil {
+		t.Nil(err)
+	}
+
+	// find item
+	item := aaa{}
+	if err := t.access.FindByAttribute(&item, "aac[0].bba", "foo1"); err != nil {
+		t.Nil(err)
+	}
+
+	t.Equal(a, &item)
+
+	// find item
+	item = aaa{}
+	if err := t.access.FindCustom(&item, expression.Name("aad").Contains("var8")); err != nil {
+		t.Nil(err)
+	}
+
+	t.Equal(a, &item)
+
+	////// find item
+	//item = aaa{}
+	//if err := t.access.FindCustom(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
+	//	t.Nil(err)
+	//}
+	//t.Equal(a, &item)
 }
 
 func (t *AccessSuite) TestCreateRelationship() {

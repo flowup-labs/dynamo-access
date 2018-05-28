@@ -1,4 +1,4 @@
-package database
+package godynamo
 
 type Model struct {
 	Id      string `json:"id"`
@@ -10,23 +10,28 @@ type Model struct {
 type aaa struct {
 	Model
 
-	Aa string `json:"aaa"`
-	Ab string `json:"aab"`
-	Ac []bbb  `json:"aac"`
+	Aa string         `json:"aaa"`
+	Ab string         `json:"aab"`
+	Ac []bbb          `json:"aac"`
+	Ad []string       `json:"aad"`
+	Ae map[string]bbb `json:"aae"`
 }
 
 type bbb struct {
 	Model
 
-	Ba  string `json:"bba"`
-	Bb  []ddd  `json:"bbb"`
+	Ba string   `json:"bba"`
+	Bb []ddd    `json:"bbb"`
+	Bc []string `json:"bbc"`
+
 	CId string `json:"cId"`
 }
 
 type ccc struct {
 	Model
 
-	Ca  string `json:"cca"`
+	Ca string `json:"cca"`
+
 	DId string `json:"dId"`
 }
 
