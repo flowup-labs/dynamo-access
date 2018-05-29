@@ -14,7 +14,7 @@ type AccessSuite struct {
 	suite.Suite
 
 	svc    *dynamodb.DynamoDB
-	access *dynamoAccess
+	access *DynamoAccess
 }
 
 func (t *AccessSuite) SetupSuite() {

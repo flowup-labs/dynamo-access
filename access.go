@@ -12,13 +12,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 )
 
-type dynamoAccess struct {
+type DynamoAccess struct {
 	svc         *dynamodb.DynamoDB
 	tablePrefix string
 }
 
-func NewDynamoAccess(config aws.Config, tablePrefix string) *dynamoAccess {
-	return &dynamoAccess{svc: dynamodb.New(config), tablePrefix: tablePrefix}
+func NewDynamoAccess(config aws.Config, tablePrefix string) *DynamoAccess {
+	return &DynamoAccess{svc: dynamodb.New(config), tablePrefix: tablePrefix}
 }
 
 var (
@@ -26,7 +26,7 @@ var (
 	ErrElemNil    = errors.New("elem is nil")
 )
 
-func (a *dynamoAccess) CreateTables(items ...interface{}) error {
+func (a *DynamoAccess) CreateTables(items ...interface{}) error {
 
 	for _, item := range items {
 		tableName, err := a.reflect(item)
@@ -62,7 +62,7 @@ func (a *dynamoAccess) CreateTables(items ...interface{}) error {
 	return nil
 }
 
-func (a *dynamoAccess) DropTables(items ...interface{}) error {
+func (a *DynamoAccess) DropTables(items ...interface{}) error {
 	for _, item := range items {
 		tableName, err := a.reflect(item)
 		if err != nil {
@@ -80,7 +80,7 @@ func (a *dynamoAccess) DropTables(items ...interface{}) error {
 }
 
 // Create, given item si created in db, with new id
-func (a *dynamoAccess) Create(item interface{}) (error) {
+func (a *DynamoAccess) Create(item interface{}) (error) {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func (a *dynamoAccess) Create(item interface{}) (error) {
 }
 
 // Update, given item is updated
-func (a *dynamoAccess) Update(item interface{}) (error) {
+func (a *DynamoAccess) Update(item interface{}) (error) {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (a *dynamoAccess) Update(item interface{}) (error) {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
-func (a *dynamoAccess) nameOfFields(item interface{}, names []expression.NameBuilder) []expression.NameBuilder {
+func (a *DynamoAccess) nameOfFields(item interface{}, names []expression.NameBuilder) []expression.NameBuilder {
 
 	v := reflect.ValueOf(item)
 	t := v.Type()
@@ -170,7 +170,7 @@ func (a *dynamoAccess) nameOfFields(item interface{}, names []expression.NameBui
 }
 
 // QueryByAttribute, find item by attribute
-func (a *dynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
+func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -226,11 +226,11 @@ func (a *dynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 }
 
 // ScanByAttribute, find item by attribute
-func (a *dynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
+func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
 	return a.ScanCustom(item, expression.Name(key).Equal(expression.Value(value)))
 }
 
-func (a *dynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
+func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -285,7 +285,7 @@ func (a *dynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 	return nil
 }
 
-func (a *dynamoAccess) reflect(item interface{}) (string, error) {
+func (a *DynamoAccess) reflect(item interface{}) (string, error) {
 	t := reflect.TypeOf(item)
 
 	if t.Kind() != reflect.Ptr {
