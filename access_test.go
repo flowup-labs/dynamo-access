@@ -233,7 +233,7 @@ func (t *AccessSuite) TestScanOneItemByIndex() {
 	t.Len(items, 2)
 }
 
-func (t *AccessSuite) TestScanByNestedId() {
+func (t *AccessSuite) TestScan() {
 	//create item
 	a := &aaa{
 		Aa: "Aa",
@@ -260,8 +260,11 @@ func (t *AccessSuite) TestScanByNestedId() {
 		},
 		Ae: map[string]bbb{
 			"bar10": bbb{
-				Ba: "bubu",
+				Ba: "foo",
 			},
+		},
+		Af: map[string]string{
+			"bar11": "boo",
 		},
 	}
 	if err := t.access.Create(a); err != nil {
@@ -285,11 +288,18 @@ func (t *AccessSuite) TestScanByNestedId() {
 	t.Equal(a, &item)
 
 	// find item
-	//item = aaa{}
-	//if err := t.access.ScanCustom(&item, expression.Name("aac").Contains("bar10")); err != nil {
-	//	t.Nil(err)
-	//}
-	//t.Equal(a, &item)
+	item = aaa{}
+	if err := t.access.ScanCustom(&item, expression.Name("aae.bar10").AttributeExists()); err != nil {
+		t.Nil(err)
+	}
+	t.Equal(a, &item)
+
+	// find item
+	item = aaa{}
+	if err := t.access.ScanCustom(&item, expression.Name("aaf.bar11").AttributeExists()); err != nil {
+		t.Nil(err)
+	}
+	t.Equal(a, &item)
 
 	////// find item
 	//item = aaa{}

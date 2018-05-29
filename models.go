@@ -10,11 +10,12 @@ type Model struct {
 type aaa struct {
 	Model
 
-	Aa string         `json:"aaa"`
-	Ab string         `json:"aab"`
-	Ac []bbb          `json:"aac"`
-	Ad []string       `json:"aad"`
-	Ae map[string]bbb `json:"aae"`
+	Aa string            `json:"aaa"`
+	Ab string            `json:"aab"`
+	Ac []bbb             `json:"aac"`
+	Ad []string          `json:"aad"`
+	Ae map[string]bbb    `json:"aae"`
+	Af map[string]string `json:"aaf"`
 }
 
 type bbb struct {
