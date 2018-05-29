@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
+	"fmt"
 )
 
 type AccessSuite struct {
@@ -95,7 +96,7 @@ func (t *AccessSuite) TestCreateItem() {
 	}
 }
 
-func (t *AccessSuite) TestFindOneItem() {
+func (t *AccessSuite) TestQueryOneItem() {
 
 	a := &aaa{
 		Aa: "Aa",
@@ -121,7 +122,42 @@ func (t *AccessSuite) TestFindOneItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.FindByAttribute(&item, "id", a.Id); err != nil {
+	if err := t.access.QueryByAttribute(&item, "id", a.Id); err != nil {
+		fmt.Println(err)
+		t.Nil(err)
+	}
+
+	t.Equal(item.Id, a.Id)
+	t.Equal(*a, item)
+}
+
+func (t *AccessSuite) TestScanOneItem() {
+
+	a := &aaa{
+		Aa: "Aa",
+		Ab: "Ab",
+		Ac: []bbb{
+			{
+				Ba: "Ba",
+				Bb: []ddd{
+					{
+						Da: "Da",
+					},
+					{
+						Da: "Da",
+					},
+				},
+			},
+		},
+	}
+
+	if err := t.access.Create(a); err != nil {
+		t.Nil(err)
+	}
+
+	// find item
+	item := aaa{}
+	if err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -160,7 +196,7 @@ func (t *AccessSuite) TestUpdateItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.FindByAttribute(&item, "id", a.Id); err != nil {
+	if err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -168,7 +204,7 @@ func (t *AccessSuite) TestUpdateItem() {
 	t.Equal(*a, item)
 }
 
-func (t *AccessSuite) TestFindOneItemByIndex() {
+func (t *AccessSuite) TestScanOneItemByIndex() {
 	//create item
 	c := &ccc{
 		Ca:  "Ca",
@@ -190,14 +226,14 @@ func (t *AccessSuite) TestFindOneItemByIndex() {
 
 	// find item
 	items := []ccc{}
-	if err := t.access.FindByAttribute(&items, "dId", c.DId); err != nil {
+	if err := t.access.ScanByAttribute(&items, "dId", c.DId); err != nil {
 		t.Nil(err)
 	}
 
 	t.Len(items, 2)
 }
 
-func (t *AccessSuite) TestFindByNestedId() {
+func (t *AccessSuite) TestScanByNestedId() {
 	//create item
 	a := &aaa{
 		Aa: "Aa",
@@ -234,7 +270,7 @@ func (t *AccessSuite) TestFindByNestedId() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.FindByAttribute(&item, "aac[0].bba", "foo1"); err != nil {
+	if err := t.access.ScanByAttribute(&item, "aac[0].bba", "foo1"); err != nil {
 		t.Nil(err)
 	}
 
@@ -242,15 +278,22 @@ func (t *AccessSuite) TestFindByNestedId() {
 
 	// find item
 	item = aaa{}
-	if err := t.access.FindCustom(&item, expression.Name("aad").Contains("var8")); err != nil {
+	if err := t.access.ScanCustom(&item, expression.Name("aad").Contains("var8")); err != nil {
 		t.Nil(err)
 	}
 
 	t.Equal(a, &item)
 
+	// find item
+	//item = aaa{}
+	//if err := t.access.ScanCustom(&item, expression.Name("aac").Contains("bar10")); err != nil {
+	//	t.Nil(err)
+	//}
+	//t.Equal(a, &item)
+
 	////// find item
 	//item = aaa{}
-	//if err := t.access.FindCustom(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
+	//if err := t.access.ScanCustom(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
 	//	t.Nil(err)
 	//}
 	//t.Equal(a, &item)
@@ -281,7 +324,7 @@ func (t *AccessSuite) TestCreateRelationship() {
 	t.Nil(t.access.Create(&b))
 
 	item := bbb{}
-	if err := t.access.FindByAttribute(&item, "cId", a.Id); err != nil {
+	if err := t.access.ScanByAttribute(&item, "cId", a.Id); err != nil {
 		t.Nil(err)
 	}
 

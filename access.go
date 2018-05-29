@@ -169,12 +169,8 @@ func (a *dynamoAccess) nameOfFields(item interface{}, names []expression.NameBui
 	return names
 }
 
-// FindByAttribute, find item by attribute
-func (a *dynamoAccess) FindByAttribute(item interface{}, key, value string) error {
-	return a.FindCustom(item, expression.Name(key).Equal(expression.Value(value)))
-}
-
-func (a *dynamoAccess) FindCustom(item interface{}, filt expression.ConditionBuilder) error {
+// QueryByAttribute, find item by attribute
+func (a *dynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -189,7 +185,70 @@ func (a *dynamoAccess) FindCustom(item interface{}, filt expression.ConditionBui
 		proj = proj.AddNames(name)
 	}
 
-	expr, err := expression.NewBuilder().WithFilter(filt).WithProjection(proj).Build()
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
+		WithProjection(proj).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ProjectionExpression:      expr.Projection(),
+		TableName:                 aws.String(tableName),
+	}).Send()
+	if err != nil {
+		return err
+	}
+
+	t := reflect.TypeOf(item)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Slice {
+		if len(result.Items) > 0 {
+			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ScanByAttribute, find item by attribute
+func (a *dynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
+	return a.ScanCustom(item, expression.Name(key).Equal(expression.Value(value)))
+}
+
+func (a *dynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
+	tableName, err := a.reflect(item)
+	if err != nil {
+		return err
+	}
+
+	nameBuilder := []expression.NameBuilder{}
+	nameBuilder = a.nameOfFields(item, nameBuilder)
+
+	proj := expression.ProjectionBuilder{}
+
+	for _, name := range nameBuilder {
+		proj = proj.AddNames(name)
+	}
+
+	expr, err := expression.NewBuilder().
+		WithFilter(filt).
+		WithProjection(proj).
+		Build()
 	if err != nil {
 		return err
 	}
