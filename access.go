@@ -5,12 +5,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/go-errors/errors"
 	"github.com/satori/go.uuid"
-	"fmt"
 	"time"
 	"reflect"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 	"strings"
+	"fmt"
 )
 
 type DynamoAccess struct {
@@ -27,7 +27,6 @@ var (
 	ErrElemNil    = errors.New("elem is nil")
 )
 
-
 func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dynamodb.AttributeDefinition, keySchemaElement []dynamodb.KeySchemaElement) ([]dynamodb.AttributeDefinition, []dynamodb.KeySchemaElement) {
 
 	v := reflect.ValueOf(item)
@@ -42,7 +41,7 @@ func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dyna
 	}
 
 	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).Type.Kind() == reflect.Struct {
+		if t.Field(i).Type.Kind() == reflect.Struct && t.Field(i).Name == "Model" {
 			a, k := a.tagOfFields(t.Field(i).Type, attributeDefinitions, keySchemaElement)
 			attributeDefinitions = append(attributeDefinitions, a...)
 			keySchemaElement = append(keySchemaElement, k...)
@@ -213,7 +212,7 @@ func (a *DynamoAccess) nameOfFields(item interface{}, names []expression.NameBui
 
 	for i := 0; i < t.NumField(); i++ {
 
-		if t.Field(i).Type.Kind() == reflect.Struct {
+		if t.Field(i).Type.Kind() == reflect.Struct && t.Field(i).Name == "Model" {
 			names = append(names, a.nameOfFields(t.Field(i).Type, names)...)
 		}
 
@@ -223,6 +222,62 @@ func (a *DynamoAccess) nameOfFields(item interface{}, names []expression.NameBui
 	}
 
 	return names
+}
+
+// QueryByAttribute, find item by attribute
+func (a *DynamoAccess) QueryByCustom(item interface{}) error {
+	tableName, err := a.reflect(item)
+	if err != nil {
+		return err
+	}
+
+	nameBuilder := []expression.NameBuilder{}
+	nameBuilder = a.nameOfFields(item, nameBuilder)
+
+	proj := expression.ProjectionBuilder{}
+
+	for _, name := range nameBuilder {
+		proj = proj.AddNames(name)
+	}
+
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key("bbd").GreaterThanEqual(expression.Value(2))).
+		WithProjection(proj).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		KeyConditionExpression:    expr.KeyCondition(),
+		ProjectionExpression:      expr.Projection(),
+		TableName:                 aws.String(tableName),
+	}).Send()
+	if err != nil {
+		return err
+	}
+
+	t := reflect.TypeOf(item)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() != reflect.Slice {
+		if len(result.Items) > 0 {
+			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
+				return err
+			}
+		}
+	} else {
+		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // QueryByAttribute, find item by attribute

@@ -340,45 +340,43 @@ func (t *AccessSuite) TestCreateRelationship() {
 	t.Equal(b, item)
 }
 
-//func (t *AccessSuite) TestRange() {
-//
-//	bs := []bbb{
-//		{
-//			Ba: "Ba",
-//			Bd: 1,
-//		},
-//		{
-//			Ba: "Ba",
-//			Bd: 5,
-//		},
-//		{
-//			Ba: "Ba",
-//			Bd: 10,
-//		},
-//		{
-//			Ba: "Ba",
-//			Bd: 15,
-//		},
-//		{
-//			Ba: "Ba",
-//			Bd: 20,
-//		},
-//	}
-//
-//	for _, b := range bs {
-//		t.Nil(t.access.Create(&b))
-//	}
-//
-//	items := []bbb{}
-//
-//	//condtional := expression.Name("bbd").GreaterThan(expression.Value("1"))
-//	//if err := t.access.QueryByCustom(&items, expression.Key("id").Equal(expression.Value("Ba")), &condtional); err != nil {
-//	//	fmt.Println(err)
-//	//	t.Nil(err)
-//	//}
-//
-//	t.Len(items, 3)
-//}
+func (t *AccessSuite) TestRange() {
+
+	bs := []bbb{
+		{
+			Ba: "Ba",
+			Bd: 1,
+		},
+		{
+			Ba: "Ba",
+			Bd: 5,
+		},
+		{
+			Ba: "Ba",
+			Bd: 10,
+		},
+		{
+			Ba: "Ba",
+			Bd: 15,
+		},
+		{
+			Ba: "Ba",
+			Bd: 20,
+		},
+	}
+
+	for _, b := range bs {
+		t.Nil(t.access.Create(&b))
+	}
+
+	items := []bbb{}
+
+	if err := t.access.ScanCustom(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
+		t.Nil(err)
+	}
+
+	t.Len(items, 3)
+}
 
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
