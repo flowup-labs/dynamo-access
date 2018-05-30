@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
-	"fmt"
 )
 
 type AccessSuite struct {
@@ -122,8 +121,7 @@ func (t *AccessSuite) TestQueryOneItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.QueryByAttribute(&item, "id", a.Id); err != nil {
-		fmt.Println(err)
+	if err := t.access.GetOneItem(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -331,7 +329,8 @@ func (t *AccessSuite) TestCreateRelationship() {
 		CId: a.Id,
 	}
 
-	t.Nil(t.access.Create(&b))
+	err := t.access.Create(&b)
+	t.Nil(err)
 
 	item := bbb{}
 	if err := t.access.ScanByAttribute(&item, "cId", a.Id); err != nil {
@@ -340,6 +339,46 @@ func (t *AccessSuite) TestCreateRelationship() {
 
 	t.Equal(b, item)
 }
+
+//func (t *AccessSuite) TestRange() {
+//
+//	bs := []bbb{
+//		{
+//			Ba: "Ba",
+//			Bd: 1,
+//		},
+//		{
+//			Ba: "Ba",
+//			Bd: 5,
+//		},
+//		{
+//			Ba: "Ba",
+//			Bd: 10,
+//		},
+//		{
+//			Ba: "Ba",
+//			Bd: 15,
+//		},
+//		{
+//			Ba: "Ba",
+//			Bd: 20,
+//		},
+//	}
+//
+//	for _, b := range bs {
+//		t.Nil(t.access.Create(&b))
+//	}
+//
+//	items := []bbb{}
+//
+//	//condtional := expression.Name("bbd").GreaterThan(expression.Value("1"))
+//	//if err := t.access.QueryByCustom(&items, expression.Key("id").Equal(expression.Value("Ba")), &condtional); err != nil {
+//	//	fmt.Println(err)
+//	//	t.Nil(err)
+//	//}
+//
+//	t.Len(items, 3)
+//}
 
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})

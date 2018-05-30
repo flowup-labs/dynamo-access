@@ -1,7 +1,7 @@
 package godynamo
 
 type Model struct {
-	Id      string `json:"id"`
+	Id      string `json:"id" godynamo:"S,hash"`
 	Created int64  `json:"created"`
 	Updated int64  `json:"updated"`
 	Deleted int64  `json:"deleted"`
@@ -26,6 +26,8 @@ type bbb struct {
 	Bc []string `json:"bbc"`
 
 	CId string `json:"cId"`
+
+	Bd int64 `json:"bbd" godynamo:"N,range"`
 }
 
 type ccc struct {

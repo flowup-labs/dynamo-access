@@ -3,13 +3,14 @@ package godynamo
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
-	"reflect"
 	"github.com/go-errors/errors"
 	"github.com/satori/go.uuid"
-	"time"
 	"fmt"
+	"time"
+	"reflect"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
+	"strings"
 )
 
 type DynamoAccess struct {
@@ -26,9 +27,75 @@ var (
 	ErrElemNil    = errors.New("elem is nil")
 )
 
+
+func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dynamodb.AttributeDefinition, keySchemaElement []dynamodb.KeySchemaElement) ([]dynamodb.AttributeDefinition, []dynamodb.KeySchemaElement) {
+
+	v := reflect.ValueOf(item)
+	t := v.Type()
+
+	if v.Elem().Type().String() == "reflect.rtype" {
+		t = item.(reflect.Type)
+	}
+
+	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+		t = t.Elem()
+	}
+
+	for i := 0; i < t.NumField(); i++ {
+		if t.Field(i).Type.Kind() == reflect.Struct {
+			a, k := a.tagOfFields(t.Field(i).Type, attributeDefinitions, keySchemaElement)
+			attributeDefinitions = append(attributeDefinitions, a...)
+			keySchemaElement = append(keySchemaElement, k...)
+		}
+
+		dynamoTag, ok := t.Field(i).Tag.Lookup("godynamo")
+		if !ok {
+			continue
+		}
+
+		jsonTag, ok := t.Field(i).Tag.Lookup("json")
+		if !ok {
+			continue
+		}
+
+		dynamoTags := strings.Split(dynamoTag, ",")
+
+		atribute := dynamodb.AttributeDefinition{
+			AttributeName: aws.String(jsonTag),
+		}
+
+		if dynamoTags[0] == "S" {
+			atribute.AttributeType = dynamodb.ScalarAttributeTypeS
+		}
+		if dynamoTags[0] == "N" {
+			atribute.AttributeType = dynamodb.ScalarAttributeTypeN
+		}
+
+		attributeDefinitions = append(attributeDefinitions, atribute)
+
+		if dynamoTags[1] == "hash" {
+			keySchemaElement = append(keySchemaElement, dynamodb.KeySchemaElement{
+				AttributeName: aws.String(jsonTag),
+				KeyType:       dynamodb.KeyTypeHash,
+			})
+		}
+
+		if dynamoTags[1] == "range" {
+			keySchemaElement = append(keySchemaElement, dynamodb.KeySchemaElement{
+				AttributeName: aws.String(jsonTag),
+				KeyType:       dynamodb.KeyTypeRange,
+			})
+		}
+	}
+
+	return attributeDefinitions, keySchemaElement
+}
+
 func (a *DynamoAccess) CreateTables(items ...interface{}) error {
 
 	for _, item := range items {
+		attributeDefinitions, keySchemaElement := a.tagOfFields(item, []dynamodb.AttributeDefinition{}, []dynamodb.KeySchemaElement{})
+
 		tableName, err := a.reflect(item)
 		if err != nil {
 			return err
@@ -36,20 +103,9 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) error {
 
 		// Send the request, and get the response or error back
 		if _, err = a.svc.CreateTableRequest(&dynamodb.CreateTableInput{
-			TableName: aws.String(tableName),
-			AttributeDefinitions: []dynamodb.AttributeDefinition{
-
-				{
-					AttributeName: aws.String("id"),
-					AttributeType: dynamodb.ScalarAttributeTypeS,
-				},
-			},
-			KeySchema: []dynamodb.KeySchemaElement{
-				{
-					AttributeName: aws.String("id"),
-					KeyType:       dynamodb.KeyTypeHash,
-				},
-			},
+			TableName:            aws.String(tableName),
+			AttributeDefinitions: attributeDefinitions,
+			KeySchema:            keySchemaElement,
 			ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
 				ReadCapacityUnits:  aws.Int64(10),
 				WriteCapacityUnits: aws.Int64(10),
@@ -220,6 +276,59 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// GetItem, find item by attribute
+func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
+	tableName, err := a.reflect(item)
+	if err != nil {
+		return err
+	}
+
+	t := reflect.TypeOf(item)
+
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
+	if t.Kind() == reflect.Slice {
+		return errors.New("slice is prohibited")
+	}
+
+	nameBuilder := []expression.NameBuilder{}
+	nameBuilder = a.nameOfFields(item, nameBuilder)
+
+	proj := expression.ProjectionBuilder{}
+
+	for _, name := range nameBuilder {
+		proj = proj.AddNames(name)
+	}
+
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
+		WithProjection(proj).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	result, err := a.svc.GetItemRequest(&dynamodb.GetItemInput{
+		ExpressionAttributeNames: expr.Names(),
+		ProjectionExpression:     expr.Projection(),
+		TableName:                aws.String(tableName),
+		Key: map[string]dynamodb.AttributeValue{
+			key: dynamodb.AttributeValue{S: aws.String(value)},
+		},
+	}).Send()
+	if err != nil {
+		return err
+	}
+
+	if err := dynamodbattribute.UnmarshalMap(result.Item, item); err != nil {
+		return err
 	}
 
 	return nil
