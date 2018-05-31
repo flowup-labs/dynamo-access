@@ -147,13 +147,6 @@ func (a *DynamoAccess) Create(item interface{}) (error) {
 	}
 
 	// add uuid
-	//if _, ok := av["id"]; !ok {
-	//	fmt.Println(ok, "ale nemelo by")
-	//	av["id"] = dynamodb.AttributeValue{
-	//		S: aws.String(uuid.NewV4().String()),
-	//	}
-	//}
-
 	if av["id"].NULL != nil && *av["id"].NULL {
 		av["id"] = dynamodb.AttributeValue{
 			S: aws.String(uuid.NewV4().String()),
@@ -207,50 +200,50 @@ func (a *DynamoAccess) Update(item interface{}) (error) {
 }
 
 // QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryCustom(item interface{}, filt expression.ConditionBuilder) error {
-	tableName, err := a.reflect(item)
-	if err != nil {
-		return err
-	}
-
-	expr, err := expression.NewBuilder().
-	//WithFilter(expression.Name("bbd").GreaterThanEqual(expression.Value(2))).
-		WithKeyCondition(expression.Key("id").Equal(expression.Value("1"))).
-		Build()
-	if err != nil {
-		return err
-	}
-
-	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		KeyConditionExpression:    expr.KeyCondition(),
-		TableName:                 aws.String(tableName),
-	}).Send()
-	if err != nil {
-		return err
-	}
-
-	t := reflect.TypeOf(item)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() != reflect.Slice {
-		if len(result.Items) > 0 {
-			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
-				return err
-			}
-		}
-	} else {
-		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
+//func (a *DynamoAccess) QueryCustom(item interface{}, filt expression.ConditionBuilder) error {
+//	tableName, err := a.reflect(item)
+//	if err != nil {
+//		return err
+//	}
+//
+//	expr, err := expression.NewBuilder().
+//	//WithFilter(expression.Name("bbd").GreaterThanEqual(expression.Value(2))).
+//		WithKeyCondition(expression.Key("id").Equal(expression.Value("1"))).
+//		Build()
+//	if err != nil {
+//		return err
+//	}
+//
+//	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
+//		ExpressionAttributeNames:  expr.Names(),
+//		ExpressionAttributeValues: expr.Values(),
+//		KeyConditionExpression:    expr.KeyCondition(),
+//		TableName:                 aws.String(tableName),
+//	}).Send()
+//	if err != nil {
+//		return err
+//	}
+//
+//	t := reflect.TypeOf(item)
+//
+//	if t.Kind() == reflect.Ptr {
+//		t = t.Elem()
+//	}
+//
+//	if t.Kind() != reflect.Slice {
+//		if len(result.Items) > 0 {
+//			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
+//				return err
+//			}
+//		}
+//	} else {
+//		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
+//			return err
+//		}
+//	}
+//
+//	return nil
+//}
 
 // QueryByAttribute, find item by attribute
 func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
