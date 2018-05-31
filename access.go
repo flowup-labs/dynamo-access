@@ -4,13 +4,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/go-errors/errors"
-	"github.com/satori/go.uuid"
 	"time"
 	"reflect"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 	"strings"
 	"fmt"
+	"github.com/satori/go.uuid"
 )
 
 type DynamoAccess struct {
@@ -147,8 +147,17 @@ func (a *DynamoAccess) Create(item interface{}) (error) {
 	}
 
 	// add uuid
-	av["id"] = dynamodb.AttributeValue{
-		S: aws.String(uuid.NewV4().String()),
+	//if _, ok := av["id"]; !ok {
+	//	fmt.Println(ok, "ale nemelo by")
+	//	av["id"] = dynamodb.AttributeValue{
+	//		S: aws.String(uuid.NewV4().String()),
+	//	}
+	//}
+
+	if av["id"].NULL != nil && *av["id"].NULL {
+		av["id"] = dynamodb.AttributeValue{
+			S: aws.String(uuid.NewV4().String()),
+		}
 	}
 
 	// add timestamps
@@ -197,52 +206,16 @@ func (a *DynamoAccess) Update(item interface{}) (error) {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
-func (a *DynamoAccess) nameOfFields(item interface{}, names []expression.NameBuilder) []expression.NameBuilder {
-
-	v := reflect.ValueOf(item)
-	t := v.Type()
-
-	if v.Elem().Type().String() == "reflect.rtype" {
-		t = item.(reflect.Type)
-	}
-
-	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
-		t = t.Elem()
-	}
-
-	for i := 0; i < t.NumField(); i++ {
-
-		if t.Field(i).Type.Kind() == reflect.Struct && t.Field(i).Name == "Model" {
-			names = append(names, a.nameOfFields(t.Field(i).Type, names)...)
-		}
-
-		if tag, ok := t.Field(i).Tag.Lookup("json"); ok {
-			names = append(names, expression.Name(tag))
-		}
-	}
-
-	return names
-}
-
 // QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryByCustom(item interface{}) error {
+func (a *DynamoAccess) QueryCustom(item interface{}, filt expression.ConditionBuilder) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
 	}
 
-	nameBuilder := []expression.NameBuilder{}
-	nameBuilder = a.nameOfFields(item, nameBuilder)
-
-	proj := expression.ProjectionBuilder{}
-
-	for _, name := range nameBuilder {
-		proj = proj.AddNames(name)
-	}
-
 	expr, err := expression.NewBuilder().
-		WithKeyCondition(expression.Key("bbd").GreaterThanEqual(expression.Value(2))).
-		WithProjection(proj).
+	//WithFilter(expression.Name("bbd").GreaterThanEqual(expression.Value(2))).
+		WithKeyCondition(expression.Key("id").Equal(expression.Value("1"))).
 		Build()
 	if err != nil {
 		return err
@@ -252,7 +225,6 @@ func (a *DynamoAccess) QueryByCustom(item interface{}) error {
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		KeyConditionExpression:    expr.KeyCondition(),
-		ProjectionExpression:      expr.Projection(),
 		TableName:                 aws.String(tableName),
 	}).Send()
 	if err != nil {
@@ -287,18 +259,8 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 		return err
 	}
 
-	nameBuilder := []expression.NameBuilder{}
-	nameBuilder = a.nameOfFields(item, nameBuilder)
-
-	proj := expression.ProjectionBuilder{}
-
-	for _, name := range nameBuilder {
-		proj = proj.AddNames(name)
-	}
-
 	expr, err := expression.NewBuilder().
 		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
-		WithProjection(proj).
 		Build()
 	if err != nil {
 		return err
@@ -308,7 +270,6 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		KeyConditionExpression:    expr.KeyCondition(),
-		ProjectionExpression:      expr.Projection(),
 		TableName:                 aws.String(tableName),
 	}).Send()
 	if err != nil {
@@ -353,27 +314,8 @@ func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
 		return errors.New("slice is prohibited")
 	}
 
-	nameBuilder := []expression.NameBuilder{}
-	nameBuilder = a.nameOfFields(item, nameBuilder)
-
-	proj := expression.ProjectionBuilder{}
-
-	for _, name := range nameBuilder {
-		proj = proj.AddNames(name)
-	}
-
-	expr, err := expression.NewBuilder().
-		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
-		WithProjection(proj).
-		Build()
-	if err != nil {
-		return err
-	}
-
 	result, err := a.svc.GetItemRequest(&dynamodb.GetItemInput{
-		ExpressionAttributeNames: expr.Names(),
-		ProjectionExpression:     expr.Projection(),
-		TableName:                aws.String(tableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			key: dynamodb.AttributeValue{S: aws.String(value)},
 		},
@@ -400,18 +342,8 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 		return err
 	}
 
-	nameBuilder := []expression.NameBuilder{}
-	nameBuilder = a.nameOfFields(item, nameBuilder)
-
-	proj := expression.ProjectionBuilder{}
-
-	for _, name := range nameBuilder {
-		proj = proj.AddNames(name)
-	}
-
 	expr, err := expression.NewBuilder().
 		WithFilter(filt).
-		WithProjection(proj).
 		Build()
 	if err != nil {
 		return err
@@ -421,7 +353,6 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		FilterExpression:          expr.Filter(),
-		ProjectionExpression:      expr.Projection(),
 		TableName:                 aws.String(tableName),
 	}).Send()
 	if err != nil {

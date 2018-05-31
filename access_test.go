@@ -218,6 +218,7 @@ func (t *AccessSuite) TestScanOneItemByIndex() {
 		t.Nil(err)
 	}
 
+	c.Id = ""
 	if err := t.access.Create(c); err != nil {
 		t.Nil(err)
 	}
@@ -340,7 +341,7 @@ func (t *AccessSuite) TestCreateRelationship() {
 	t.Equal(b, item)
 }
 
-func (t *AccessSuite) TestRange() {
+func (t *AccessSuite) TestScanRange() {
 
 	bs := []bbb{
 		{
@@ -377,6 +378,52 @@ func (t *AccessSuite) TestRange() {
 
 	t.Len(items, 3)
 }
+
+//func (t *AccessSuite) TestQueryRange() {
+//
+//	bs := []bbb{
+//		{
+//			Model: Model{Id: "1"},
+//			Ba:    "Ba",
+//			Bd:    1,
+//		},
+//		{
+//			Model: Model{Id: "2"},
+//			Ba:    "Ba",
+//			Bd:    5,
+//		},
+//		{
+//			Model: Model{Id: "3"},
+//			Ba:    "Ba",
+//			Bd:    10,
+//		},
+//		{
+//			Model: Model{Id: "4"},
+//			Ba:    "Ba",
+//			Bd:    15,
+//		},
+//		{
+//			Model: Model{Id: "5"},
+//			Ba:    "Ba",
+//			Bd:    20,
+//		},
+//	}
+//
+//	for _, b := range bs {
+//		t.Nil(t.access.Create(&b))
+//	}
+//
+//	items := []bbb{}
+//
+//	if err := t.access.QueryCustom(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
+//		fmt.Println(err)
+//		t.Nil(err)
+//	}
+//
+//	fmt.Println("items", items)
+//
+//	t.Len(items, 3)
+//}
 
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
