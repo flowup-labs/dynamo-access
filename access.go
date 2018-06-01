@@ -199,6 +199,33 @@ func (a *DynamoAccess) Update(item interface{}) (error) {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
+// Delete, given id of item is deleted
+func (a *DynamoAccess) Delete(item interface{}, key, value string) (error) {
+	tableName, err := a.reflect(item)
+	if err != nil {
+		return err
+	}
+
+	av, err := dynamodbattribute.MarshalMap(item)
+	if err != nil {
+		return err
+	}
+
+	// add timestamp
+	av["deleted"] = dynamodb.AttributeValue{
+		N: aws.String(fmt.Sprint(time.Now().Unix())),
+	}
+
+	if _, err := a.svc.PutItemRequest(&dynamodb.PutItemInput{
+		Item:      av,
+		TableName: aws.String(tableName),
+	}).Send(); err != nil {
+		return err
+	}
+
+	return dynamodbattribute.UnmarshalMap(av, item)
+}
+
 // QueryByAttribute, find item by attribute
 //func (a *DynamoAccess) QueryCustom(item interface{}, filt expression.ConditionBuilder) error {
 //	tableName, err := a.reflect(item)
@@ -254,6 +281,7 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 
 	expr, err := expression.NewBuilder().
 		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
+		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
 		Build()
 	if err != nil {
 		return err
@@ -264,6 +292,7 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 		ExpressionAttributeValues: expr.Values(),
 		KeyConditionExpression:    expr.KeyCondition(),
 		TableName:                 aws.String(tableName),
+		FilterExpression:          expr.Filter(),
 	}).Send()
 	if err != nil {
 		return err
@@ -336,7 +365,7 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 	}
 
 	expr, err := expression.NewBuilder().
-		WithFilter(filt).
+		WithFilter(filt.And(expression.Name("deleted").Equal(expression.Value(0)))).
 		Build()
 	if err != nil {
 		return err

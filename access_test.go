@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
+	"fmt"
 )
 
 type AccessSuite struct {
@@ -424,6 +425,49 @@ func (t *AccessSuite) TestScanRange() {
 //
 //	t.Len(items, 3)
 //}
+
+func (t *AccessSuite) TestDeleteItem() {
+
+	bs := []bbb{
+		{
+			Ba: "Ba",
+			Bd: 1,
+		},
+		{
+			Ba: "Ba",
+			Bd: 5,
+		},
+		{
+			Ba: "Ba",
+			Bd: 10,
+		},
+		{
+			Ba: "Ba",
+			Bd: 15,
+		},
+		{
+			Ba: "Ba",
+			Bd: 20,
+		},
+	}
+
+	for _, b := range bs {
+		t.Nil(t.access.Create(&b))
+
+		if err := t.access.Delete(&b, "id", b.Id); err != nil {
+			fmt.Println(err)
+			t.Nil(err)
+		}
+	}
+
+	items := []bbb{}
+
+	if err := t.access.ScanCustom(&items, expression.Name("bbd").Between(expression.Value(0), expression.Value(255))); err != nil {
+		t.Nil(err)
+	}
+
+	t.Len(items, 0)
+}
 
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
