@@ -90,14 +90,14 @@ func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dyna
 	return attributeDefinitions, keySchemaElement
 }
 
-func (a *DynamoAccess) CreateTables(items ...interface{}) error {
-
+func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
+	var errors []error
 	for _, item := range items {
 		attributeDefinitions, keySchemaElement := a.tagOfFields(item, []dynamodb.AttributeDefinition{}, []dynamodb.KeySchemaElement{})
 
 		tableName, err := a.reflect(item)
 		if err != nil {
-			return err
+			errors = append(errors, err)
 		}
 
 		// Send the request, and get the response or error back
@@ -110,28 +110,30 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) error {
 				WriteCapacityUnits: aws.Int64(10),
 			},
 		}).Send(); err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
 
-	return nil
+	return errors
 }
 
-func (a *DynamoAccess) DropTables(items ...interface{}) error {
+func (a *DynamoAccess) DropTables(items ...interface{}) []error {
+	var errors []error
+
 	for _, item := range items {
 		tableName, err := a.reflect(item)
 		if err != nil {
-			return err
+			errors = append(errors, err)
 		}
 
 		if _, err := a.svc.DeleteTableRequest(&dynamodb.DeleteTableInput{
 			TableName: aws.String(tableName),
 		}).Send(); err != nil {
-			return err
+			errors = append(errors, err)
 		}
 	}
 
-	return nil
+	return errors
 }
 
 // Create, given item si created in db, with new id
