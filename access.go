@@ -201,6 +201,10 @@ func (a *DynamoAccess) Update(item interface{}) (error) {
 
 // Delete, given id of item is deleted
 func (a *DynamoAccess) Delete(item interface{}, key, value string) (error) {
+	if err := a.GetOneItem(item, key, value); err != nil {
+		return err
+	}
+
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err

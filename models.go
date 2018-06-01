@@ -27,7 +27,7 @@ type bbb struct {
 
 	CId string `json:"cId"`
 
-	Bd int64 `json:"bbd" godynamo:"N,range"`
+	Bd int64 `json:"bbd"`
 }
 
 type ccc struct {
