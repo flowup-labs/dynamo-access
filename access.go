@@ -3,7 +3,6 @@ package godynamo
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/go-errors/errors"
 	"time"
 	"reflect"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"fmt"
 	"github.com/satori/go.uuid"
+	"errors"
 )
 
 type DynamoAccess struct {
@@ -25,6 +25,7 @@ func NewDynamoAccess(config aws.Config, tablePrefix string) *DynamoAccess {
 var (
 	ErrNotPointer = errors.New("item must be pointer")
 	ErrElemNil    = errors.New("elem is nil")
+	ErrNotFound   = errors.New("item not found")
 )
 
 func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dynamodb.AttributeDefinition, keySchemaElement []dynamodb.KeySchemaElement) ([]dynamodb.AttributeDefinition, []dynamodb.KeySchemaElement) {
@@ -354,6 +355,10 @@ func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
 
 	if err := dynamodbattribute.UnmarshalMap(result.Item, item); err != nil {
 		return err
+	}
+
+	if result.Item["id"].S == nil || (result.Item["deleted"].N != nil && *result.Item["deleted"].N != *aws.String("0")) {
+		return ErrNotFound
 	}
 
 	return nil

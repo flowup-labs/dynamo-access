@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
-	"fmt"
 )
 
 type AccessSuite struct {
@@ -455,9 +454,11 @@ func (t *AccessSuite) TestDeleteItem() {
 		t.Nil(t.access.Create(&b))
 
 		if err := t.access.Delete(&b, "id", b.Id); err != nil {
-			fmt.Println(err)
 			t.Nil(err)
 		}
+
+		err := t.access.GetOneItem(&b, "id", b.Id)
+		t.Equal(err.Error(), ErrNotFound.Error())
 	}
 
 	items := []bbb{}
@@ -469,12 +470,14 @@ func (t *AccessSuite) TestDeleteItem() {
 	t.Len(items, 0)
 }
 
+func (t *AccessSuite) TestGetNoItem() {
+
+	item := bbb{}
+
+	err := t.access.GetOneItem(&item, "id", "aaa")
+	t.Equal(err.Error(), ErrNotFound.Error())
+}
+
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
 }
-
-//config, err := external.LoadDefaultAWSConfig()
-//if err != nil {
-//	panic(err)
-//}
-//
