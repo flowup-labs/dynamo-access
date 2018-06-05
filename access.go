@@ -1,16 +1,16 @@
 package godynamo
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"errors"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"time"
-	"reflect"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
-	"strings"
-	"fmt"
 	"github.com/satori/go.uuid"
-	"errors"
+	"reflect"
+	"strings"
+	"time"
 )
 
 type DynamoAccess struct {
@@ -138,7 +138,7 @@ func (a *DynamoAccess) DropTables(items ...interface{}) []error {
 }
 
 // Create, given item si created in db, with new id
-func (a *DynamoAccess) Create(item interface{}) (error) {
+func (a *DynamoAccess) Create(item interface{}) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -150,9 +150,13 @@ func (a *DynamoAccess) Create(item interface{}) (error) {
 	}
 
 	// add uuid
+	v4, err := uuid.NewV4()
+	if err != nil {
+		return err
+	}
 	if av["id"].NULL != nil && *av["id"].NULL {
 		av["id"] = dynamodb.AttributeValue{
-			S: aws.String(uuid.NewV4().String()),
+			S: aws.String(v4.String()),
 		}
 	}
 
@@ -176,7 +180,7 @@ func (a *DynamoAccess) Create(item interface{}) (error) {
 }
 
 // Update, given item is updated
-func (a *DynamoAccess) Update(item interface{}) (error) {
+func (a *DynamoAccess) Update(item interface{}) error {
 	tableName, err := a.reflect(item)
 	if err != nil {
 		return err
@@ -203,7 +207,7 @@ func (a *DynamoAccess) Update(item interface{}) (error) {
 }
 
 // Delete, given id of item is deleted
-func (a *DynamoAccess) Delete(item interface{}, key, value string) (error) {
+func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 	if err := a.GetOneItem(item, key, value); err != nil {
 		return err
 	}
@@ -346,7 +350,7 @@ func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
 	result, err := a.svc.GetItemRequest(&dynamodb.GetItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
-			key: dynamodb.AttributeValue{S: aws.String(value)},
+			key: {S: aws.String(value)},
 		},
 	}).Send()
 	if err != nil {

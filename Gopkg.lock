@@ -19,20 +19,14 @@
     "service/dynamodb/dynamodbattribute",
     "service/dynamodb/expression"
   ]
-  revision = "3383499f1024e86a3c68200f9bdc6759ee20eb70"
-  version = "v2.0.0-preview.3"
+  revision = "ff1a530c31507c97cf5edbee226e604ca08661cc"
+  version = "v2.0.0-preview.4"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
-
-[[projects]]
-  name = "github.com/go-errors/errors"
-  packages = ["."]
-  revision = "a6af135bd4e28680facf08a3d206b454abc877a4"
-  version = "v1.0.1"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
@@ -48,7 +42,7 @@
 [[projects]]
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
   version = "v1.2.0"
 
 [[projects]]
@@ -64,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ed4444ec40bbf45bcf002fae80ab6107437c52fff39cd173fa909aae8b15bcfb"
+  inputs-digest = "7217c668b89e30e8bc58621926712f7c0bf6fff0403e1e8c2f4e66daabd72a76"
   solver-name = "gps-cdcl"
   solver-version = 1
