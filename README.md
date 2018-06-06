@@ -61,3 +61,7 @@ make test
 ## Authors
 
 * **Vladan Rysavy** -  [rysavyvladan](https://github.com/rysavyvladan)
+
+## Disclaimer
+
+This is not an official FlowUp product.
