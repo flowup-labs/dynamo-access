@@ -2,10 +2,11 @@ package godynamo
 
 import (
 	"github.com/stretchr/testify/suite"
-	"testing"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"fmt"
+	"testing"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 )
 
@@ -33,9 +34,17 @@ func (t *AccessSuite) SetupSuite() {
 
 func (t *AccessSuite) SetupTest() {
 
-	t.access.DropTables(&aaa{}, &ccc{}, &bbb{})
+	t.access.DropTables(&aaa{}, &ccc{}, &bbb{}, &ddd{}, )
 
-	t.access.CreateTables(&aaa{}, &ccc{}, &bbb{})
+	if errs := t.access.DropTables(&User{}); len(errs) != 0 {
+		fmt.Println(errs)
+	}
+
+	t.access.CreateTables(&aaa{}, &ccc{}, &bbb{}, &ddd{})
+
+	if errs := t.access.CreateTables(&User{}); len(errs) != 0 {
+		fmt.Println(errs)
+	}
 
 }
 
@@ -64,9 +73,9 @@ func (t *AccessSuite) TestReflect() {
 	}
 
 	for _, candidate := range candidates {
-		tableName, err := t.access.reflect(candidate.item)
+		tableName, err := t.access.tableName(candidate.item)
 		t.Nil(err)
-		t.Equal(candidate.expectedName, tableName)
+		t.Equal(candidate.expectedName, *tableName)
 	}
 }
 
@@ -379,52 +388,6 @@ func (t *AccessSuite) TestScanRange() {
 	t.Len(items, 3)
 }
 
-//func (t *AccessSuite) TestQueryRange() {
-//
-//	bs := []bbb{
-//		{
-//			Model: Model{Id: "1"},
-//			Ba:    "Ba",
-//			Bd:    1,
-//		},
-//		{
-//			Model: Model{Id: "2"},
-//			Ba:    "Ba",
-//			Bd:    5,
-//		},
-//		{
-//			Model: Model{Id: "3"},
-//			Ba:    "Ba",
-//			Bd:    10,
-//		},
-//		{
-//			Model: Model{Id: "4"},
-//			Ba:    "Ba",
-//			Bd:    15,
-//		},
-//		{
-//			Model: Model{Id: "5"},
-//			Ba:    "Ba",
-//			Bd:    20,
-//		},
-//	}
-//
-//	for _, b := range bs {
-//		t.Nil(t.access.Create(&b))
-//	}
-//
-//	items := []bbb{}
-//
-//	if err := t.access.QueryCustom(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
-//		fmt.Println(err)
-//		t.Nil(err)
-//	}
-//
-//	fmt.Println("items", items)
-//
-//	t.Len(items, 3)
-//}
-
 func (t *AccessSuite) TestDeleteItem() {
 
 	bs := []bbb{
@@ -476,6 +439,119 @@ func (t *AccessSuite) TestGetNoItem() {
 
 	err := t.access.GetOneItem(&item, "id", "aaa")
 	t.Equal(err.Error(), ErrNotFound.Error())
+}
+
+func (t *AccessSuite) TestTableBuilder() {
+	tableExpected := &dynamodb.CreateTableInput{
+		AttributeDefinitions: []dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("first_name"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("email"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("created_at"),
+				AttributeType: dynamodb.ScalarAttributeTypeN,
+			},
+		},
+		KeySchema: []dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("email"),
+				KeyType:       dynamodb.KeyTypeHash,
+			},
+		},
+		GlobalSecondaryIndexes: []dynamodb.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String("created_at_first_name_index"),
+				KeySchema: []dynamodb.KeySchemaElement{
+					{
+						AttributeName: aws.String("created_at"),
+						KeyType:       dynamodb.KeyTypeHash,
+					},
+					{
+						AttributeName: aws.String("first_name"),
+						KeyType:       dynamodb.KeyTypeRange,
+					},
+				},
+				ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+					ReadCapacityUnits:  aws.Int64(10),
+					WriteCapacityUnits: aws.Int64(10),
+				},
+				Projection: &dynamodb.Projection{
+					ProjectionType: dynamodb.ProjectionTypeAll,
+				},
+			},
+		},
+	}
+
+	output := &dynamodb.CreateTableInput{}
+	t.access.tableBuilder(&User{}, output)
+	t.Equal(tableExpected, output)
+}
+
+func (t *AccessSuite) TestQueryCustom() {
+
+	candidates := []*User{
+		{
+			FirstName: "John",
+			Email:     "john@gmail.com",
+			CreatedAt: 1,
+		},
+		{
+			FirstName: "John",
+			Email:     "john1@gmail.com",
+			CreatedAt: 1,
+		},
+		{
+			FirstName: "John",
+			Email:     "john2@gmail.com",
+			CreatedAt: 1,
+		},
+	}
+
+	for _, candidate := range candidates {
+		if err := t.access.Create(candidate); err != nil {
+			t.Nil(err)
+		}
+	}
+
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key("email").Equal(expression.Value("john@gmail.com"))).
+		Build()
+	if err != nil {
+		t.Nil(err)
+	}
+
+	user := &User{}
+
+	if err := t.access.QueryCustom(user, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+		t.Nil(err)
+	}
+
+	t.Equal(user, candidates[0])
+
+	expr, err = expression.NewBuilder().
+		WithKeyCondition(expression.Key("created_at").Equal(expression.Value(1)).And(expression.Key("first_name").Equal(expression.Value("John")))).
+		Build()
+	if err != nil {
+		t.Nil(err)
+	}
+
+	users := []User{}
+
+	if err := t.access.QueryCustom(&users, expr, "created_at_first_name_index", 2, map[string]dynamodb.AttributeValue{
+		"email":      dynamodb.AttributeValue{S: aws.String("john@gmail.com")},
+		"created_at": dynamodb.AttributeValue{N: aws.String("1")},
+		"first_name": dynamodb.AttributeValue{S: aws.String("John")},
+	}); err != nil {
+		t.Nil(err)
+	}
+
+	t.Len(users, 2)
+
 }
 
 func TestAccessSuite(t *testing.T) {

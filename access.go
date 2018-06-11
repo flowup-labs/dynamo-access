@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
 	"github.com/satori/go.uuid"
 	"reflect"
-	"strings"
 	"time"
+	"strings"
 )
 
 type DynamoAccess struct {
@@ -23,13 +23,35 @@ func NewDynamoAccess(config aws.Config, tablePrefix string) *DynamoAccess {
 }
 
 var (
-	ErrNotPointer = errors.New("item must be pointer")
-	ErrElemNil    = errors.New("elem is nil")
-	ErrNotFound   = errors.New("item not found")
+	ErrNotPointer       = errors.New("item must be pointer")
+	ErrElemNil          = errors.New("elem is nil")
+	ErrNotFound         = errors.New("item not found")
+	ErrNotSupportedType = errors.New("not supported type")
 )
 
-func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dynamodb.AttributeDefinition, keySchemaElement []dynamodb.KeySchemaElement) ([]dynamodb.AttributeDefinition, []dynamodb.KeySchemaElement) {
+func (a *DynamoAccess) typeToScalarType(Type string) (dynamodb.ScalarAttributeType, error) {
+	if Type == "string" {
+		return dynamodb.ScalarAttributeTypeS, nil
+	}
+	if Type == "int" ||
+		Type == "int8" ||
+		Type == "int16" ||
+		Type == "int32" ||
+		Type == "int64" ||
+		Type == "uint" ||
+		Type == "uint8" ||
+		Type == "uint16" ||
+		Type == "uint32" ||
+		Type == "uint64" ||
+		Type == "uintptr" {
+		return dynamodb.ScalarAttributeTypeN, nil
+	}
 
+	return dynamodb.ScalarAttributeTypeS, ErrNotSupportedType
+}
+
+func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTableInput) (error) {
+	var err error
 	v := reflect.ValueOf(item)
 	t := v.Type()
 
@@ -43,9 +65,9 @@ func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dyna
 
 	for i := 0; i < t.NumField(); i++ {
 		if t.Field(i).Type.Kind() == reflect.Struct && t.Field(i).Name == "Model" {
-			a, k := a.tagOfFields(t.Field(i).Type, attributeDefinitions, keySchemaElement)
-			attributeDefinitions = append(attributeDefinitions, a...)
-			keySchemaElement = append(keySchemaElement, k...)
+			if err := a.tableBuilder(t.Field(i).Type, table); err != nil {
+				return err
+			}
 		}
 
 		dynamoTag, ok := t.Field(i).Tag.Lookup("godynamo")
@@ -58,59 +80,98 @@ func (a *DynamoAccess) tagOfFields(item interface{}, attributeDefinitions []dyna
 			continue
 		}
 
-		dynamoTags := strings.Split(dynamoTag, ",")
+		dynamoFuncs := strings.Split(dynamoTag, ",")
+		for _, dynamoFunc := range dynamoFuncs {
+			var gsiB, lsiB bool
+			index := 0
 
-		atribute := dynamodb.AttributeDefinition{
-			AttributeName: aws.String(jsonTag),
-		}
-
-		if dynamoTags[0] == "S" {
-			atribute.AttributeType = dynamodb.ScalarAttributeTypeS
-		}
-		if dynamoTags[0] == "N" {
-			atribute.AttributeType = dynamodb.ScalarAttributeTypeN
-		}
-
-		attributeDefinitions = append(attributeDefinitions, atribute)
-
-		if dynamoTags[1] == "hash" {
-			keySchemaElement = append(keySchemaElement, dynamodb.KeySchemaElement{
+			attribute := dynamodb.AttributeDefinition{
 				AttributeName: aws.String(jsonTag),
-				KeyType:       dynamodb.KeyTypeHash,
-			})
-		}
+			}
 
-		if dynamoTags[1] == "range" {
-			keySchemaElement = append(keySchemaElement, dynamodb.KeySchemaElement{
+			attribute.AttributeType, err = a.typeToScalarType(t.Field(i).Type.String())
+			if err != nil {
+				return err
+			}
+
+			table.AttributeDefinitions = append(table.AttributeDefinitions, attribute)
+			keySchema := []dynamodb.KeySchemaElement{}
+
+			if strings.HasPrefix(dynamoFunc, "global_secondary_index(") {
+				gsiB = true
+				dynamoFunc = strings.TrimSuffix(strings.TrimPrefix(dynamoFunc, "global_secondary_index("), ")")
+				dynamoTags := strings.Split(dynamoFunc, ":")
+
+				dynamoFunc = dynamoTags[1]
+
+				for ; index < len(table.GlobalSecondaryIndexes) && *table.GlobalSecondaryIndexes[index].IndexName != dynamoTags[0]; index++ {
+				}
+
+				if len(table.GlobalSecondaryIndexes) == index {
+					table.GlobalSecondaryIndexes = append(table.GlobalSecondaryIndexes, dynamodb.GlobalSecondaryIndex{
+						IndexName: aws.String(dynamoTags[0]),
+						ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+							ReadCapacityUnits:  aws.Int64(10),
+							WriteCapacityUnits: aws.Int64(10),
+						},
+						Projection: &dynamodb.Projection{
+							ProjectionType: dynamodb.ProjectionTypeAll,
+						},
+					})
+				}
+			}
+
+			elem := dynamodb.KeySchemaElement{
 				AttributeName: aws.String(jsonTag),
-				KeyType:       dynamodb.KeyTypeRange,
-			})
+			}
+
+			switch dynamoFunc {
+			case "hash":
+				elem.KeyType = dynamodb.KeyTypeHash
+			case "range":
+				elem.KeyType = dynamodb.KeyTypeRange
+			}
+
+			keySchema = append(keySchema, elem)
+
+			if gsiB {
+				table.GlobalSecondaryIndexes[index].KeySchema = append(keySchema, table.GlobalSecondaryIndexes[index].KeySchema...)
+				continue
+			} else if lsiB {
+				//todo
+				//table.LocalSecondaryIndexes
+			}
+
+			table.KeySchema = keySchema
 		}
 	}
 
-	return attributeDefinitions, keySchemaElement
+	return nil
 }
 
 func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
 	var errors []error
 	for _, item := range items {
-		attributeDefinitions, keySchemaElement := a.tagOfFields(item, []dynamodb.AttributeDefinition{}, []dynamodb.KeySchemaElement{})
+		table := &dynamodb.CreateTableInput{}
+		var err error
 
-		tableName, err := a.reflect(item)
+		table.TableName, err = a.tableName(item)
 		if err != nil {
 			errors = append(errors, err)
 		}
 
+		if err := a.tableBuilder(item, table); err != nil {
+			errors = append(errors, err)
+		}
+
+		table.ProvisionedThroughput = &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(10),
+			WriteCapacityUnits: aws.Int64(10),
+		}
+
 		// Send the request, and get the response or error back
-		if _, err = a.svc.CreateTableRequest(&dynamodb.CreateTableInput{
-			TableName:            aws.String(tableName),
-			AttributeDefinitions: attributeDefinitions,
-			KeySchema:            keySchemaElement,
-			ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-				ReadCapacityUnits:  aws.Int64(10),
-				WriteCapacityUnits: aws.Int64(10),
-			},
-		}).Send(); err != nil {
+		if _, err = a.svc.CreateTableRequest(table).Send();
+			err != nil {
 			errors = append(errors, err)
 		}
 	}
@@ -122,13 +183,13 @@ func (a *DynamoAccess) DropTables(items ...interface{}) []error {
 	var errors []error
 
 	for _, item := range items {
-		tableName, err := a.reflect(item)
+		tableName, err := a.tableName(item)
 		if err != nil {
 			errors = append(errors, err)
 		}
 
 		if _, err := a.svc.DeleteTableRequest(&dynamodb.DeleteTableInput{
-			TableName: aws.String(tableName),
+			TableName: tableName,
 		}).Send(); err != nil {
 			errors = append(errors, err)
 		}
@@ -139,7 +200,7 @@ func (a *DynamoAccess) DropTables(items ...interface{}) []error {
 
 // Create, given item si created in db, with new id
 func (a *DynamoAccess) Create(item interface{}) error {
-	tableName, err := a.reflect(item)
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -171,7 +232,7 @@ func (a *DynamoAccess) Create(item interface{}) error {
 
 	if _, err := a.svc.PutItemRequest(&dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(tableName),
+		TableName: tableName,
 	}).Send(); err != nil {
 		return err
 	}
@@ -181,7 +242,7 @@ func (a *DynamoAccess) Create(item interface{}) error {
 
 // Update, given item is updated
 func (a *DynamoAccess) Update(item interface{}) error {
-	tableName, err := a.reflect(item)
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -198,7 +259,7 @@ func (a *DynamoAccess) Update(item interface{}) error {
 
 	if _, err := a.svc.PutItemRequest(&dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(tableName),
+		TableName: tableName,
 	}).Send(); err != nil {
 		return err
 	}
@@ -212,7 +273,7 @@ func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 		return err
 	}
 
-	tableName, err := a.reflect(item)
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -229,7 +290,7 @@ func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 
 	if _, err := a.svc.PutItemRequest(&dynamodb.PutItemInput{
 		Item:      av,
-		TableName: aws.String(tableName),
+		TableName: tableName,
 	}).Send(); err != nil {
 		return err
 	}
@@ -237,74 +298,33 @@ func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
-// QueryByAttribute, find item by attribute
-//func (a *DynamoAccess) QueryCustom(item interface{}, filt expression.ConditionBuilder) error {
-//	tableName, err := a.reflect(item)
-//	if err != nil {
-//		return err
-//	}
-//
-//	expr, err := expression.NewBuilder().
-//	//WithFilter(expression.Name("bbd").GreaterThanEqual(expression.Value(2))).
-//		WithKeyCondition(expression.Key("id").Equal(expression.Value("1"))).
-//		Build()
-//	if err != nil {
-//		return err
-//	}
-//
-//	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
-//		ExpressionAttributeNames:  expr.Names(),
-//		ExpressionAttributeValues: expr.Values(),
-//		KeyConditionExpression:    expr.KeyCondition(),
-//		TableName:                 aws.String(tableName),
-//	}).Send()
-//	if err != nil {
-//		return err
-//	}
-//
-//	t := reflect.TypeOf(item)
-//
-//	if t.Kind() == reflect.Ptr {
-//		t = t.Elem()
-//	}
-//
-//	if t.Kind() != reflect.Slice {
-//		if len(result.Items) > 0 {
-//			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
-//				return err
-//			}
-//		}
-//	} else {
-//		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
-//			return err
-//		}
-//	}
-//
-//	return nil
-//}
-
-// QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
-	tableName, err := a.reflect(item)
+//QueryByAttribute, find item by attribute
+func (a *DynamoAccess) QueryCustom(item interface{}, expr expression.Expression, indexName string, limit int64, exclusiveStartKey map[string]dynamodb.AttributeValue) error {
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
 
-	expr, err := expression.NewBuilder().
-		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
-		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
-		Build()
-	if err != nil {
-		return err
-	}
-
-	result, err := a.svc.QueryRequest(&dynamodb.QueryInput{
+	queryInput := &dynamodb.QueryInput{
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		KeyConditionExpression:    expr.KeyCondition(),
-		TableName:                 aws.String(tableName),
-		FilterExpression:          expr.Filter(),
-	}).Send()
+		TableName:                 tableName,
+	}
+
+	if limit != 0 {
+		queryInput.Limit = aws.Int64(limit)
+	}
+
+	if indexName != "" {
+		queryInput.IndexName = aws.String(indexName)
+	}
+
+	if len(exclusiveStartKey) != 0 {
+		queryInput.ExclusiveStartKey = exclusiveStartKey
+	}
+
+	result, err := a.svc.QueryRequest(queryInput).Send()
 	if err != nil {
 		return err
 	}
@@ -330,9 +350,26 @@ func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) err
 	return nil
 }
 
+// QueryByAttribute, find item by attribute
+func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
+		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	if err := a.QueryCustom(item, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetItem, find item by attribute
 func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
-	tableName, err := a.reflect(item)
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -348,7 +385,7 @@ func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
 	}
 
 	result, err := a.svc.GetItemRequest(&dynamodb.GetItemInput{
-		TableName: aws.String(tableName),
+		TableName: tableName,
 		Key: map[string]dynamodb.AttributeValue{
 			key: {S: aws.String(value)},
 		},
@@ -374,7 +411,7 @@ func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) erro
 }
 
 func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
-	tableName, err := a.reflect(item)
+	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -390,7 +427,7 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		FilterExpression:          expr.Filter(),
-		TableName:                 aws.String(tableName),
+		TableName:                 tableName,
 	}).Send()
 	if err != nil {
 		return err
@@ -417,20 +454,20 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 	return nil
 }
 
-func (a *DynamoAccess) reflect(item interface{}) (string, error) {
+func (a *DynamoAccess) tableName(item interface{}) (*string, error) {
 	t := reflect.TypeOf(item)
 
 	if t.Kind() != reflect.Ptr {
-		return "", ErrNotPointer
+		return aws.String(""), ErrNotPointer
 	}
 
 	if t.Elem() == nil {
-		return "", ErrElemNil
+		return aws.String(""), ErrElemNil
 	}
 
 	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
 		t = t.Elem()
 	}
 
-	return a.tablePrefix + t.Name(), nil
+	return aws.String(a.tablePrefix + t.Name()), nil
 }
