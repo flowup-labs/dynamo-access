@@ -1,4 +1,4 @@
-# dynamo-access
+# godynamo
 
 Collection of basics helpers for operations on the aws-dynamoDB based on [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2)
 
