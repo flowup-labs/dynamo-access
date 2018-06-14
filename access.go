@@ -298,6 +298,23 @@ func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
+// QueryByAttribute, find item by attribute
+func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
+		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	if err := a.QueryCustom(item, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 //QueryByAttribute, find item by attribute
 func (a *DynamoAccess) QueryCustom(item interface{}, expr expression.Expression, indexName string, limit int64, exclusiveStartKey map[string]dynamodb.AttributeValue) error {
 	tableName, err := a.tableName(item)
@@ -310,6 +327,10 @@ func (a *DynamoAccess) QueryCustom(item interface{}, expr expression.Expression,
 		ExpressionAttributeValues: expr.Values(),
 		KeyConditionExpression:    expr.KeyCondition(),
 		TableName:                 tableName,
+	}
+
+	if expr.Filter() != nil && *expr.Filter() != "" {
+		queryInput.FilterExpression = expr.Filter()
 	}
 
 	if limit != 0 {
@@ -345,23 +366,6 @@ func (a *DynamoAccess) QueryCustom(item interface{}, expr expression.Expression,
 		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
-	expr, err := expression.NewBuilder().
-		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
-		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
-		Build()
-	if err != nil {
-		return err
-	}
-
-	if err := a.QueryCustom(item, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
-		return err
 	}
 
 	return nil

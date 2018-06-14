@@ -554,6 +554,30 @@ func (t *AccessSuite) TestQueryCustom() {
 
 }
 
+func (t *AccessSuite) TestQueryByAttribute() {
+
+	candidates := []*bbb{
+		{
+			Ba: "Ba",
+			Bd: 1,
+		},
+	}
+
+	for _, candidate := range candidates {
+		if err := t.access.Create(candidate); err != nil {
+			t.Nil(err)
+		}
+	}
+
+	b := &bbb{}
+
+	if err := t.access.QueryByAttribute(b, "id", candidates[0].Id); err != nil {
+		t.Nil(err)
+	}
+
+	t.Equal(b, candidates[0])
+}
+
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
 }
