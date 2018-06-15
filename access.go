@@ -27,6 +27,8 @@ var (
 	ErrElemNil          = errors.New("elem is nil")
 	ErrNotFound         = errors.New("item not found")
 	ErrNotSupportedType = errors.New("not supported type")
+
+	NoPaging = map[string]dynamodb.AttributeValue{}
 )
 
 func (a *DynamoAccess) typeToScalarType(Type string) (dynamodb.ScalarAttributeType, error) {

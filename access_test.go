@@ -578,6 +578,46 @@ func (t *AccessSuite) TestQueryByAttribute() {
 	t.Equal(b, candidates[0])
 }
 
+func (t *AccessSuite) TestQueryCustomDdd() {
+
+	candidates := []*ddd{
+		{
+			Da: "John",
+		},
+		{
+			Da: "John",
+		},
+		{
+			Da: "John",
+		},
+		{
+			Da: "James",
+		},
+	}
+
+	for _, candidate := range candidates {
+		if err := t.access.Create(candidate); err != nil {
+			t.Nil(err)
+		}
+	}
+
+	expr, err := expression.NewBuilder().
+		WithKeyCondition(expression.Key("dda").Equal(expression.Value("John"))).
+		Build()
+	if err != nil {
+		t.Nil(err)
+	}
+
+	ddds := []ddd{}
+
+	if err := t.access.QueryCustom(&ddds, expr, "index", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+		t.Nil(err)
+	}
+
+	t.Len(ddds, 3)
+
+}
+
 func TestAccessSuite(t *testing.T) {
 	suite.Run(t, &AccessSuite{})
 }

@@ -41,7 +41,7 @@ type ccc struct {
 type ddd struct {
 	Model
 
-	Da string `json:"dda"`
+	Da string `json:"dda" godynamo:"global_secondary_index(index:hash)"`
 	Db string `json:"ddb"`
 }
 
