@@ -527,7 +527,7 @@ func (t *AccessSuite) TestQueryCustom() {
 
 	user := &User{}
 
-	if err := t.access.QueryCustom(user, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+	if err := t.access.QueryCustom(user, expr, "", 0, NoPaging); err != nil {
 		t.Nil(err)
 	}
 
@@ -610,11 +610,19 @@ func (t *AccessSuite) TestQueryCustomDdd() {
 
 	ddds := []ddd{}
 
-	if err := t.access.QueryCustom(&ddds, expr, "index", 0, map[string]dynamodb.AttributeValue{}); err != nil {
+	if err := t.access.QueryCustom(&ddds, expr, "index", 0, NoPaging); err != nil {
 		t.Nil(err)
 	}
 
 	t.Len(ddds, 3)
+
+	ddd := ddd{}
+
+	if err := t.access.QueryByAttribute(&ddd, "id", candidates[0].Id); err != nil {
+		t.Nil(err)
+	}
+
+	t.Equal(candidates[0], &ddd)
 
 }
 

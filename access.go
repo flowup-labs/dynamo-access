@@ -137,7 +137,11 @@ func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTabl
 			keySchema = append(keySchema, elem)
 
 			if gsiB {
-				table.GlobalSecondaryIndexes[index].KeySchema = append(keySchema, table.GlobalSecondaryIndexes[index].KeySchema...)
+				if dynamoFunc == "hash" {
+					table.GlobalSecondaryIndexes[index].KeySchema = append(keySchema, table.GlobalSecondaryIndexes[index].KeySchema...)
+				} else {
+					table.GlobalSecondaryIndexes[index].KeySchema = append(table.GlobalSecondaryIndexes[index].KeySchema, keySchema...)
+				}
 				continue
 			} else if lsiB {
 				//todo
@@ -170,6 +174,8 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
 			ReadCapacityUnits:  aws.Int64(10),
 			WriteCapacityUnits: aws.Int64(10),
 		}
+
+		fmt.Println(table)
 
 		// Send the request, and get the response or error back
 		if _, err = a.svc.CreateTableRequest(table).Send();
