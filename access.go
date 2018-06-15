@@ -175,8 +175,6 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
 			WriteCapacityUnits: aws.Int64(10),
 		}
 
-		fmt.Println(table)
-
 		// Send the request, and get the response or error back
 		if _, err = a.svc.CreateTableRequest(table).Send();
 			err != nil {
