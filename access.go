@@ -275,6 +275,25 @@ func (a *DynamoAccess) Update(item interface{}) error {
 
 // Delete, given id of item is deleted
 func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
+	tableName, err := a.tableName(item)
+	if err != nil {
+		return err
+	}
+
+	if _, err := a.svc.DeleteItemRequest(&dynamodb.DeleteItemInput{
+		TableName: tableName,
+		Key: map[string]dynamodb.AttributeValue{
+			key: {S: aws.String(value)},
+		},
+	}).Send(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SoftDelete, given id of item is deleted
+func (a *DynamoAccess) SoftDelete(item interface{}, key, value string) error {
 	if err := a.GetOneItem(item, key, value); err != nil {
 		return err
 	}
