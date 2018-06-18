@@ -5,7 +5,7 @@ Collection of basics helpers for operations on the aws-dynamoDB based on [aws-sd
 ### Installing
 
 ```
-go get github/flowup-labs/dynamo-access
+go get github/flowup-labs/godynamo
 ```
 
 ### Quickstart
