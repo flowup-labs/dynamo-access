@@ -148,7 +148,11 @@ func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTabl
 				//table.LocalSecondaryIndexes
 			}
 
-			table.KeySchema = keySchema
+			if dynamoFunc == "hash" {
+				table.KeySchema = append(keySchema, table.KeySchema...)
+			} else {
+				table.KeySchema = append(table.KeySchema, keySchema...)
+			}
 		}
 	}
 
