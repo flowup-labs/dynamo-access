@@ -5,6 +5,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
+// Represents basic model data as id, and
+// times of created, updated and deleted saved
+// in unix format
 type Model struct {
 	Id      string `json:"id" godynamo:"hash"`
 	Created int64  `json:"created"`
@@ -12,8 +15,31 @@ type Model struct {
 	Deleted int64  `json:"deleted"`
 }
 
-//// Represents the input of a Query operation.
+// Represents the input of a Query operation.
 type QueryInput struct {
+	// Expression represents a collection of DynamoDB Expressions. The getter
+	// methods of the Expression struct retrieves the formatted DynamoDB
+	// Expressions, ExpressionAttributeNames, and ExpressionAttributeValues.
+	//
+	// Example:
+	//
+	//     // keyCond represents the Key Condition Expression
+	//     keyCond := expression.Key("someKey").Equal(expression.Value("someValue"))
+	//     // proj represents the Projection Expression
+	//     proj := expression.NamesList(expression.Name("aName"), expression.Name("anotherName"), expression.Name("oneOtherName"))
+	//
+	//     // Add keyCond and proj to builder as a Key Condition and Projection
+	//     // respectively
+	//     builder := expression.NewBuilder().WithKeyCondition(keyCond).WithProjection(proj)
+	//     expression := builder.Build()
+	//
+	//     queryInput := dynamodb.QueryInput{
+	//       KeyConditionExpression:    expression.KeyCondition(),
+	//       ProjectionExpression:      expression.Projection(),
+	//       ExpressionAttributeNames:  expression.Names(),
+	//       ExpressionAttributeValues: expression.Values(),
+	//       TableName: aws.String("SomeTable"),
+	//     }
 	Expr              expression.Expression
 
 	// The name of an index to query. This index can be any local secondary index

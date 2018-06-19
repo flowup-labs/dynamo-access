@@ -27,6 +27,7 @@ var (
 	ErrElemNil          = errors.New("elem is nil")
 	ErrNotFound         = errors.New("item not found")
 	ErrNotSupportedType = errors.New("not supported type")
+	ErrSlice            = errors.New("slice is prohibited")
 
 	NoPaging = map[string]dynamodb.AttributeValue{}
 )
@@ -197,7 +198,7 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
 		table := &dynamodb.CreateTableInput{}
 		var err error
 
-		table.TableName, err = a.tableName(item)
+		table.TableName, _, err = a.tableName(item)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -225,7 +226,7 @@ func (a *DynamoAccess) DropTables(items ...interface{}) []error {
 	var errors []error
 
 	for _, item := range items {
-		tableName, err := a.tableName(item)
+		tableName, _, err := a.tableName(item)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -242,7 +243,7 @@ func (a *DynamoAccess) DropTables(items ...interface{}) []error {
 
 // Create, given item si created in db, with new id
 func (a *DynamoAccess) Create(item interface{}) error {
-	tableName, err := a.tableName(item)
+	tableName, _, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -284,7 +285,7 @@ func (a *DynamoAccess) Create(item interface{}) error {
 
 // Update, given item is updated
 func (a *DynamoAccess) Update(item interface{}) error {
-	tableName, err := a.tableName(item)
+	tableName, _, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -311,7 +312,7 @@ func (a *DynamoAccess) Update(item interface{}) error {
 
 // Delete, given id of item is deleted
 func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
-	tableName, err := a.tableName(item)
+	tableName, _, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -328,13 +329,13 @@ func (a *DynamoAccess) Delete(item interface{}, key, value string) error {
 	return nil
 }
 
-// SoftDelete, given id of item is deleted
+// SoftDelete, given id of item is mark as deleted in time stamp deleted
 func (a *DynamoAccess) SoftDelete(item interface{}, key, value string) error {
-	if err := a.GetOneItem(item, key, value); err != nil {
+	if err := a.GetItem(item, key, value); err != nil {
 		return err
 	}
 
-	tableName, err := a.tableName(item)
+	tableName, _, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -359,9 +360,9 @@ func (a *DynamoAccess) SoftDelete(item interface{}, key, value string) error {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
-//QueryByAttribute, find item by attribute
+//Query, find item by given query input
 func (a *DynamoAccess) Query(item interface{}, input QueryInput) error {
-	tableName, err := a.tableName(item)
+	tableName, slice, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -395,17 +396,9 @@ func (a *DynamoAccess) Query(item interface{}, input QueryInput) error {
 		return err
 	}
 
-	t := reflect.TypeOf(item)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() != reflect.Slice {
-		if len(result.Items) > 0 {
-			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
-				return err
-			}
+	if !slice && len(result.Items) > 0 {
+		if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
+			return err
 		}
 	} else {
 		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
@@ -417,20 +410,14 @@ func (a *DynamoAccess) Query(item interface{}, input QueryInput) error {
 }
 
 // GetItem, find item by attribute
-func (a *DynamoAccess) GetOneItem(item interface{}, key, value string) error {
-	tableName, err := a.tableName(item)
+func (a *DynamoAccess) GetItem(item interface{}, key, value string) error {
+	tableName, slice, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
 
-	t := reflect.TypeOf(item)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() == reflect.Slice {
-		return errors.New("slice is prohibited")
+	if slice {
+		return ErrSlice
 	}
 
 	result, err := a.svc.GetItemRequest(&dynamodb.GetItemInput{
@@ -460,7 +447,7 @@ func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) erro
 }
 
 func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
-	tableName, err := a.tableName(item)
+	tableName, slice, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
@@ -482,17 +469,9 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 		return err
 	}
 
-	t := reflect.TypeOf(item)
-
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-
-	if t.Kind() != reflect.Slice {
-		if len(result.Items) > 0 {
-			if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
-				return err
-			}
+	if !slice && len(result.Items) > 0 {
+		if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
+			return err
 		}
 	} else {
 		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
@@ -503,20 +482,25 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 	return nil
 }
 
-func (a *DynamoAccess) tableName(item interface{}) (*string, error) {
+// tableName return name of struct, and flag if is slice or not
+func (a *DynamoAccess) tableName(item interface{}) (*string, bool, error) {
+	slice := false
 	t := reflect.TypeOf(item)
 
 	if t.Kind() != reflect.Ptr {
-		return aws.String(""), ErrNotPointer
+		return aws.String(""), false, ErrNotPointer
 	}
 
 	if t.Elem() == nil {
-		return aws.String(""), ErrElemNil
+		return aws.String(""), false, ErrElemNil
 	}
 
 	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
+		if t.Kind() == reflect.Slice {
+			slice = true
+		}
 		t = t.Elem()
 	}
 
-	return aws.String(a.tablePrefix + t.Name()), nil
+	return aws.String(a.tablePrefix + t.Name()), slice, nil
 }

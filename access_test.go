@@ -64,7 +64,7 @@ func (t *AccessSuite) TestReflect() {
 	}
 
 	for _, candidate := range candidates {
-		tableName, err := t.access.tableName(candidate.item)
+		tableName, _, err := t.access.tableName(candidate.item)
 		t.Nil(err)
 		t.Equal(candidate.expectedName, *tableName)
 	}
@@ -121,7 +121,7 @@ func (t *AccessSuite) TestQueryOneItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.GetOneItem(&item, "id", a.Id); err != nil {
+	if err := t.access.GetItem(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -411,7 +411,7 @@ func (t *AccessSuite) TestDeleteItem() {
 			t.Nil(err)
 		}
 
-		err := t.access.GetOneItem(&b, "id", b.Id)
+		err := t.access.GetItem(&b, "id", b.Id)
 		t.Equal(err.Error(), ErrNotFound.Error())
 	}
 
@@ -428,7 +428,7 @@ func (t *AccessSuite) TestGetNoItem() {
 
 	item := bbb{}
 
-	err := t.access.GetOneItem(&item, "id", "aaa")
+	err := t.access.GetItem(&item, "id", "aaa")
 	t.Equal(err.Error(), ErrNotFound.Error())
 }
 
