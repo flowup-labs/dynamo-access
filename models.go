@@ -40,12 +40,12 @@ type RequestInput struct {
 	//       ExpressionAttributeValues: expression.Values(),
 	//       TableName: aws.String("SomeTable"),
 	//     }
-	Expr              expression.Expression
+	Expr expression.Expression
 
 	// The name of an index to query. This index can be any local secondary index
 	// or global secondary index on the table. Note that if you use the IndexName
 	// parameter, you must also provide TableName.
-	IndexName         string
+	IndexName string
 
 	// The maximum number of items to evaluate (not necessarily the number of matching
 	// items). If DynamoDB processes the number of items up to the limit while processing
@@ -57,7 +57,7 @@ type RequestInput struct {
 	// to apply in a subsequent operation to continue the operation. For more information,
 	// see Query and Scan (http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/QueryAndScan.html)
 	// in the Amazon DynamoDB Developer Guide.
-	Limit             int64
+	Limit int64
 
 	// The primary key of the first item that this operation will evaluate. Use
 	// the value that was returned for LastEvaluatedKey in the previous operation.
@@ -79,7 +79,7 @@ type RequestInput struct {
 	// which they are stored (by sort key value). This is the default behavior.
 	// If ScanIndexForward is false, DynamoDB reads the results in reverse order
 	// by sort key value, and then returns the results to the client.
-	ScanIndexForward  bool
+	ScanIndexForward bool
 }
 
 type aaa struct {
@@ -132,8 +132,8 @@ type eee struct {
 	Model
 
 	Ea string `json:"eea" godynamo:"global_secondary_index(index:hash)"`
-	Eb int64  `json:"eeb" godynamo:"global_secondary_index(index:range)"`
-	Ec int64  `json:"eec"`
+	Eb int64  `json:"eeb" godynamo:"global_secondary_index(index:range),global_secondary_index(index2:range)"`
+	Ec int64  `json:"eec"  godynamo:"global_secondary_index(index2:hash)"`
 }
 
 type user struct {

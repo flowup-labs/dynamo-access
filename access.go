@@ -85,19 +85,28 @@ func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTabl
 
 		dynamoFuncs := strings.Split(dynamoTag, ",")
 		for _, dynamoFunc := range dynamoFuncs {
-			var gsiB, lsiB bool
+			var gsiB, lsiB, atributeExist bool
 			index := 0
 
-			attribute := dynamodb.AttributeDefinition{
-				AttributeName: aws.String(jsonTag),
+			for _, attributeDefinition := range table.AttributeDefinitions {
+				if *attributeDefinition.AttributeName == jsonTag {
+					atributeExist = true
+				}
 			}
 
-			attribute.AttributeType, err = a.typeToScalarType(t.Field(i).Type.String())
-			if err != nil {
-				return err
+			if !atributeExist {
+				attribute := dynamodb.AttributeDefinition{
+					AttributeName: aws.String(jsonTag),
+				}
+
+				attribute.AttributeType, err = a.typeToScalarType(t.Field(i).Type.String())
+				if err != nil {
+					return err
+				}
+
+				table.AttributeDefinitions = append(table.AttributeDefinitions, attribute)
 			}
 
-			table.AttributeDefinitions = append(table.AttributeDefinitions, attribute)
 			keySchema := []dynamodb.KeySchemaElement{}
 
 			if strings.HasPrefix(dynamoFunc, "global_secondary_index(") {
