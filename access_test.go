@@ -34,18 +34,9 @@ func (t *AccessSuite) SetupSuite() {
 
 func (t *AccessSuite) SetupTest() {
 
-	t.access.DropTables(&aaa{}, &ccc{}, &bbb{}, &ddd{}, )
+	t.access.DropTables(&aaa{}, &ccc{}, &bbb{}, &ddd{}, &fff{}, &eee{}, &user{})
 
-	if errs := t.access.DropTables(&User{}); len(errs) != 0 {
-		fmt.Println(errs)
-	}
-
-	t.access.CreateTables(&aaa{}, &ccc{}, &bbb{}, &ddd{})
-
-	if errs := t.access.CreateTables(&User{}); len(errs) != 0 {
-		fmt.Println(errs)
-	}
-
+	t.access.CreateTables(&aaa{}, &ccc{}, &bbb{}, &ddd{}, &fff{}, &eee{}, &user{})
 }
 
 func (t *AccessSuite) TestReflect() {
@@ -488,13 +479,13 @@ func (t *AccessSuite) TestTableBuilder() {
 	}
 
 	output := &dynamodb.CreateTableInput{}
-	t.access.tableBuilder(&User{}, output)
+	t.access.tableBuilder(&user{}, output)
 	t.Equal(tableExpected, output)
 }
 
-func (t *AccessSuite) TestQueryCustom() {
+func (t *AccessSuite) TestQuery() {
 
-	candidates := []*User{
+	candidates := []*user{
 		{
 			FirstName: "John",
 			Email:     "john@gmail.com",
@@ -525,13 +516,15 @@ func (t *AccessSuite) TestQueryCustom() {
 		t.Nil(err)
 	}
 
-	user := &User{}
+	us := &user{}
 
-	if err := t.access.QueryCustom(user, expr, "", 0, NoPaging); err != nil {
+	if err := t.access.Query(us, QueryInput{
+		Expr: expr,
+	}); err != nil {
 		t.Nil(err)
 	}
 
-	t.Equal(user, candidates[0])
+	t.Equal(us, candidates[0])
 
 	expr, err = expression.NewBuilder().
 		WithKeyCondition(expression.Key("created_at").Equal(expression.Value(1)).And(expression.Key("first_name").Equal(expression.Value("John")))).
@@ -540,45 +533,34 @@ func (t *AccessSuite) TestQueryCustom() {
 		t.Nil(err)
 	}
 
-	users := []User{}
+	users := []user{}
 
-	if err := t.access.QueryCustom(&users, expr, "created_at_first_name_index", 2, map[string]dynamodb.AttributeValue{
-		"email":      dynamodb.AttributeValue{S: aws.String("john@gmail.com")},
-		"created_at": dynamodb.AttributeValue{N: aws.String("1")},
-		"first_name": dynamodb.AttributeValue{S: aws.String("John")},
+	if err := t.access.Query(&users, QueryInput{
+		Expr:      expr,
+		IndexName: "created_at_first_name_index",
+		Limit:     2,
+		ExclusiveStartKey: map[string]dynamodb.AttributeValue{
+			"email":      dynamodb.AttributeValue{S: aws.String("john@gmail.com")},
+			"created_at": dynamodb.AttributeValue{N: aws.String("1")},
+			"first_name": dynamodb.AttributeValue{S: aws.String("John")},
+		},
+		ScanIndexForward: true,
 	}); err != nil {
 		t.Nil(err)
 	}
 
 	t.Len(users, 2)
 
+	expected := []user{
+		*candidates[1],
+		*candidates[2],
+	}
+
+	t.Equal(expected, users)
+
 }
 
-func (t *AccessSuite) TestQueryByAttribute() {
-
-	candidates := []*bbb{
-		{
-			Ba: "Ba",
-			Bd: 1,
-		},
-	}
-
-	for _, candidate := range candidates {
-		if err := t.access.Create(candidate); err != nil {
-			t.Nil(err)
-		}
-	}
-
-	b := &bbb{}
-
-	if err := t.access.QueryByAttribute(b, "id", candidates[0].Id); err != nil {
-		t.Nil(err)
-	}
-
-	t.Equal(b, candidates[0])
-}
-
-func (t *AccessSuite) TestQueryCustomDdd() {
+func (t *AccessSuite) TestQueryDdd() {
 
 	candidates := []*ddd{
 		{
@@ -610,20 +592,123 @@ func (t *AccessSuite) TestQueryCustomDdd() {
 
 	ddds := []ddd{}
 
-	if err := t.access.QueryCustom(&ddds, expr, "index", 0, NoPaging); err != nil {
+	if err := t.access.Query(&ddds, QueryInput{
+		Expr:      expr,
+		IndexName: "index",
+	}); err != nil {
 		t.Nil(err)
 	}
 
 	t.Len(ddds, 3)
+}
 
-	ddd := ddd{}
+//func (t *AccessSuite) TestOrder() {
+//
+//	candidates := []*fff{
+//		{
+//			Fa: "X",
+//			Fb: "Y0",
+//			Fc: 1,
+//		},
+//		{
+//			Fa: "X",
+//			Fb: "Y1",
+//			Fc: 2,
+//		},
+//		{
+//			Fa: "X",
+//			Fb: "Y2",
+//			Fc: 3,
+//		},
+//		{
+//			Fa: "X",
+//			Fb: "Y3",
+//			Fc: 4,
+//		},
+//	}
+//
+//	for _, candidate := range candidates {
+//		if err := t.access.Create(candidate); err != nil {
+//			fmt.Println(err)
+//			t.Nil(err)
+//		}
+//	}
+//
+//	expr, err := expression.NewBuilder().Build()
+//	if err != nil {
+//		t.Nil(err)
+//	}
+//
+//	fffs := []fff{}
+//
+//	if err := t.access.Query(&fffs, expr, "index", 0, NoPaging); err != nil {
+//		fmt.Println(err)
+//		t.Nil(err)
+//	}
+//
+//	for _, fff := range fffs {
+//		fmt.Println(fff)
+//	}
+//
+//	t.NotNil(nil)
+//}
 
-	if err := t.access.QueryByAttribute(&ddd, "id", candidates[0].Id); err != nil {
+func (t *AccessSuite) TestOrder() {
+
+	candidates := []*eee{
+		{
+			Ea: "X",
+			Eb: 1,
+			Ec: 10,
+		},
+		{
+			Ea: "X",
+			Eb: 5,
+			Ec: 5,
+		},
+		{
+			Ea: "X",
+			Eb: 4,
+			Ec: 3,
+		},
+		{
+			Ea: "X",
+			Eb: 2,
+			Ec: 7,
+		},
+	}
+
+	for _, candidate := range candidates {
+		if err := t.access.Create(candidate); err != nil {
+			fmt.Println(err)
+			t.Nil(err)
+		}
+	}
+
+	expr, err := expression.NewBuilder().WithKeyCondition(expression.Key("eea").Equal(expression.Value("X")).And(expression.Key("eeb").GreaterThan(expression.Value(0)))).Build()
+	if err != nil {
 		t.Nil(err)
 	}
 
-	t.Equal(candidates[0], &ddd)
+	eees := []eee{}
 
+	if err := t.access.Query(&eees, QueryInput{
+		Expr:             expr,
+		IndexName:        "index",
+		ScanIndexForward: true,
+	}); err != nil {
+		fmt.Println(err)
+		t.Nil(err)
+	}
+
+	expected := []eee{
+		*candidates[0],
+		*candidates[3],
+		*candidates[2],
+		*candidates[1],
+	}
+
+	t.Equal(expected, eees)
 }
 
 func TestAccessSuite(t *testing.T) {

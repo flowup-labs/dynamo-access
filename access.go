@@ -123,6 +123,34 @@ func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTabl
 				}
 			}
 
+			if strings.HasPrefix(dynamoFunc, "local_secondary_index(") {
+				lsiB = true
+				dynamoFunc = strings.TrimSuffix(strings.TrimPrefix(dynamoFunc, "local_secondary_index("), ")")
+				dynamoTags := strings.Split(dynamoFunc, ":")
+
+				dynamoFunc = dynamoTags[1]
+
+				for ; index < len(table.LocalSecondaryIndexes) && *table.LocalSecondaryIndexes[index].IndexName != dynamoTags[0]; index++ {
+				}
+
+				if len(table.LocalSecondaryIndexes) == index {
+					localSecondaryIndex := dynamodb.LocalSecondaryIndex{
+						IndexName: aws.String(dynamoTags[0]),
+						Projection: &dynamodb.Projection{
+							ProjectionType: dynamodb.ProjectionTypeAll,
+						},
+					}
+
+					for _, key := range table.KeySchema {
+						if key.KeyType == dynamodb.KeyTypeHash {
+							localSecondaryIndex.KeySchema = append([]dynamodb.KeySchemaElement{key}, localSecondaryIndex.KeySchema...)
+						}
+					}
+
+					table.LocalSecondaryIndexes = append(table.LocalSecondaryIndexes, localSecondaryIndex)
+				}
+			}
+
 			elem := dynamodb.KeySchemaElement{
 				AttributeName: aws.String(jsonTag),
 			}
@@ -144,8 +172,12 @@ func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTabl
 				}
 				continue
 			} else if lsiB {
-				//todo
-				//table.LocalSecondaryIndexes
+				if dynamoFunc == "hash" {
+					table.LocalSecondaryIndexes[index].KeySchema = append(keySchema, table.LocalSecondaryIndexes[index].KeySchema...)
+				} else {
+					table.LocalSecondaryIndexes[index].KeySchema = append(table.LocalSecondaryIndexes[index].KeySchema, keySchema...)
+				}
+				continue
 			}
 
 			if dynamoFunc == "hash" {
@@ -327,51 +359,35 @@ func (a *DynamoAccess) SoftDelete(item interface{}, key, value string) error {
 	return dynamodbattribute.UnmarshalMap(av, item)
 }
 
-// QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryByAttribute(item interface{}, key, value string) error {
-	expr, err := expression.NewBuilder().
-		WithKeyCondition(expression.Key(key).Equal(expression.Value(value))).
-		WithFilter(expression.Name("deleted").Equal(expression.Value(0))).
-		Build()
-	if err != nil {
-		return err
-	}
-
-	if err := a.QueryCustom(item, expr, "", 0, map[string]dynamodb.AttributeValue{}); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 //QueryByAttribute, find item by attribute
-func (a *DynamoAccess) QueryCustom(item interface{}, expr expression.Expression, indexName string, limit int64, exclusiveStartKey map[string]dynamodb.AttributeValue) error {
+func (a *DynamoAccess) Query(item interface{}, input QueryInput) error {
 	tableName, err := a.tableName(item)
 	if err != nil {
 		return err
 	}
 
 	queryInput := &dynamodb.QueryInput{
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		KeyConditionExpression:    expr.KeyCondition(),
+		ExpressionAttributeNames:  input.Expr.Names(),
+		ExpressionAttributeValues: input.Expr.Values(),
+		KeyConditionExpression:    input.Expr.KeyCondition(),
+		ScanIndexForward:          aws.Bool(input.ScanIndexForward),
 		TableName:                 tableName,
 	}
 
-	if expr.Filter() != nil && *expr.Filter() != "" {
-		queryInput.FilterExpression = expr.Filter()
+	if input.Expr.Filter() != nil && *input.Expr.Filter() != "" {
+		queryInput.FilterExpression = input.Expr.Filter()
 	}
 
-	if limit != 0 {
-		queryInput.Limit = aws.Int64(limit)
+	if input.Limit != 0 {
+		queryInput.Limit = aws.Int64(input.Limit)
 	}
 
-	if indexName != "" {
-		queryInput.IndexName = aws.String(indexName)
+	if input.IndexName != "" {
+		queryInput.IndexName = aws.String(input.IndexName)
 	}
 
-	if len(exclusiveStartKey) != 0 {
-		queryInput.ExclusiveStartKey = exclusiveStartKey
+	if len(input.ExclusiveStartKey) != 0 {
+		queryInput.ExclusiveStartKey = input.ExclusiveStartKey
 	}
 
 	result, err := a.svc.QueryRequest(queryInput).Send()
