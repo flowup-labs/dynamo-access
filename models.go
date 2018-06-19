@@ -16,7 +16,7 @@ type Model struct {
 }
 
 // Represents the input of a Query operation.
-type QueryInput struct {
+type RequestInput struct {
 	// Expression represents a collection of DynamoDB Expressions. The getter
 	// methods of the Expression struct retrieves the formatted DynamoDB
 	// Expressions, ExpressionAttributeNames, and ExpressionAttributeValues.

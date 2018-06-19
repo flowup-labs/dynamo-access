@@ -361,7 +361,7 @@ func (a *DynamoAccess) SoftDelete(item interface{}, key, value string) error {
 }
 
 //Query, find item by given query input
-func (a *DynamoAccess) Query(item interface{}, input QueryInput) error {
+func (a *DynamoAccess) Query(item interface{}, input RequestInput) error {
 	tableName, slice, err := a.tableName(item)
 	if err != nil {
 		return err
@@ -443,15 +443,10 @@ func (a *DynamoAccess) GetItem(item interface{}, key, value string) error {
 
 // ScanByAttribute, find item by attribute
 func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
-	return a.ScanCustom(item, expression.Name(key).Equal(expression.Value(value)))
+	return a.ScanByFilter(item, expression.Name(key).Equal(expression.Value(value)))
 }
 
-func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBuilder) error {
-	tableName, slice, err := a.tableName(item)
-	if err != nil {
-		return err
-	}
-
+func (a *DynamoAccess) ScanByFilter(item interface{}, filt expression.ConditionBuilder) error {
 	expr, err := expression.NewBuilder().
 		WithFilter(filt.And(expression.Name("deleted").Equal(expression.Value(0)))).
 		Build()
@@ -459,12 +454,43 @@ func (a *DynamoAccess) ScanCustom(item interface{}, filt expression.ConditionBui
 		return err
 	}
 
-	result, err := a.svc.ScanRequest(&dynamodb.ScanInput{
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		FilterExpression:          expr.Filter(),
+	return a.Scan(item, RequestInput{
+		Expr: expr,
+	})
+}
+
+func (a *DynamoAccess) Scan(item interface{}, input RequestInput) error {
+	tableName, slice, err := a.tableName(item)
+	if err != nil {
+		return err
+	}
+
+	scanInput := &dynamodb.ScanInput{
+		ExpressionAttributeNames:  input.Expr.Names(),
+		ExpressionAttributeValues: input.Expr.Values(),
 		TableName:                 tableName,
-	}).Send()
+	}
+	if err != nil {
+		return err
+	}
+
+	if input.Expr.Filter() != nil && *input.Expr.Filter() != "" {
+		scanInput.FilterExpression = input.Expr.Filter()
+	}
+
+	if input.Limit != 0 {
+		scanInput.Limit = aws.Int64(input.Limit)
+	}
+
+	if input.IndexName != "" {
+		scanInput.IndexName = aws.String(input.IndexName)
+	}
+
+	if len(input.ExclusiveStartKey) != 0 {
+		scanInput.ExclusiveStartKey = input.ExclusiveStartKey
+	}
+
+	result, err := a.svc.ScanRequest(scanInput).Send()
 	if err != nil {
 		return err
 	}

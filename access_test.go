@@ -280,7 +280,7 @@ func (t *AccessSuite) TestScan() {
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanCustom(&item, expression.Name("aad").Contains("var8")); err != nil {
+	if err := t.access.ScanByFilter(&item, expression.Name("aad").Contains("var8")); err != nil {
 		t.Nil(err)
 	}
 
@@ -288,21 +288,21 @@ func (t *AccessSuite) TestScan() {
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanCustom(&item, expression.Name("aae.bar10").AttributeExists()); err != nil {
+	if err := t.access.ScanByFilter(&item, expression.Name("aae.bar10").AttributeExists()); err != nil {
 		t.Nil(err)
 	}
 	t.Equal(a, &item)
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanCustom(&item, expression.Name("aaf.bar11").AttributeExists()); err != nil {
+	if err := t.access.ScanByFilter(&item, expression.Name("aaf.bar11").AttributeExists()); err != nil {
 		t.Nil(err)
 	}
 	t.Equal(a, &item)
 
 	////// find item
 	//item = aaa{}
-	//if err := t.access.ScanCustom(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
+	//if err := t.access.Scan(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
 	//	t.Nil(err)
 	//}
 	//t.Equal(a, &item)
@@ -372,7 +372,7 @@ func (t *AccessSuite) TestScanRange() {
 
 	items := []bbb{}
 
-	if err := t.access.ScanCustom(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
+	if err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
 		t.Nil(err)
 	}
 
@@ -417,7 +417,7 @@ func (t *AccessSuite) TestDeleteItem() {
 
 	items := []bbb{}
 
-	if err := t.access.ScanCustom(&items, expression.Name("bbd").Between(expression.Value(0), expression.Value(255))); err != nil {
+	if err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(0), expression.Value(255))); err != nil {
 		t.Nil(err)
 	}
 
@@ -518,7 +518,7 @@ func (t *AccessSuite) TestQuery() {
 
 	us := &user{}
 
-	if err := t.access.Query(us, QueryInput{
+	if err := t.access.Query(us, RequestInput{
 		Expr: expr,
 	}); err != nil {
 		t.Nil(err)
@@ -535,7 +535,7 @@ func (t *AccessSuite) TestQuery() {
 
 	users := []user{}
 
-	if err := t.access.Query(&users, QueryInput{
+	if err := t.access.Query(&users, RequestInput{
 		Expr:      expr,
 		IndexName: "created_at_first_name_index",
 		Limit:     2,
@@ -592,7 +592,7 @@ func (t *AccessSuite) TestQueryDdd() {
 
 	ddds := []ddd{}
 
-	if err := t.access.Query(&ddds, QueryInput{
+	if err := t.access.Query(&ddds, RequestInput{
 		Expr:      expr,
 		IndexName: "index",
 	}); err != nil {
@@ -692,7 +692,7 @@ func (t *AccessSuite) TestOrder() {
 
 	eees := []eee{}
 
-	if err := t.access.Query(&eees, QueryInput{
+	if err := t.access.Query(&eees, RequestInput{
 		Expr:             expr,
 		IndexName:        "index",
 		ScanIndexForward: true,
