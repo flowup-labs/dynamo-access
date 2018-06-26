@@ -29,7 +29,7 @@ func (t *AccessSuite) SetupSuite() {
 	}
 
 	t.svc = dynamodb.New(config)
-	t.access = NewDynamoAccess(config, "")
+	t.access = NewDynamoAccess(config, "access_")
 }
 
 func (t *AccessSuite) SetupTest() {
@@ -47,18 +47,18 @@ func (t *AccessSuite) TestReflect() {
 	}{
 		{
 			item:         &[]aaa{},
-			expectedName: "aaa",
+			expectedName: t.access.tablePrefix + "aaa",
 			expectedErr:  nil,
 		},
 
 		{
 			item:         &[]*aaa{},
-			expectedName: "aaa",
+			expectedName: t.access.tablePrefix + "aaa",
 			expectedErr:  nil,
 		},
 		{
 			item:         &aaa{},
-			expectedName: "aaa",
+			expectedName: t.access.tablePrefix + "aaa",
 			expectedErr:  nil,
 		},
 	}
