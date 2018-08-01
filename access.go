@@ -243,13 +243,9 @@ func (a *DynamoAccess) Create(item interface{}) error {
 	}
 
 	// add uuid
-	v4, err := uuid.NewV4()
-	if err != nil {
-		return err
-	}
 	if av["id"].NULL != nil && *av["id"].NULL {
 		av["id"] = dynamodb.AttributeValue{
-			S: aws.String(v4.String()),
+			S: aws.String(uuid.NewV4().String()),
 		}
 	}
 
