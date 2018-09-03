@@ -6,10 +6,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"reflect"
-	"time"
 	"strings"
+	"time"
 )
 
 func (a *DynamoAccess) typeToScalarType(Type string) (dynamodb.ScalarAttributeType, error) {
@@ -33,7 +33,7 @@ func (a *DynamoAccess) typeToScalarType(Type string) (dynamodb.ScalarAttributeTy
 	return dynamodb.ScalarAttributeTypeS, ErrNotSupportedType
 }
 
-func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTableInput) (error) {
+func (a *DynamoAccess) tableBuilder(item interface{}, table *dynamodb.CreateTableInput) error {
 	var err error
 	v := reflect.ValueOf(item)
 	t := v.Type()
@@ -202,8 +202,7 @@ func (a *DynamoAccess) CreateTables(items ...interface{}) []error {
 		}
 
 		// Send the request, and get the response or error back
-		if _, err = a.svc.CreateTableRequest(table).Send();
-			err != nil {
+		if _, err = a.svc.CreateTableRequest(table).Send(); err != nil {
 			errors = append(errors, err)
 		}
 	}
@@ -244,8 +243,12 @@ func (a *DynamoAccess) Create(item interface{}) error {
 
 	// add uuid
 	if av["id"].NULL != nil && *av["id"].NULL {
+		id, err := uuid.NewV4()
+		if err != nil {
+			return err
+		}
 		av["id"] = dynamodb.AttributeValue{
-			S: aws.String(uuid.NewV4().String()),
+			S: aws.String(id.String()),
 		}
 	}
 

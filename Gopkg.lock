@@ -2,6 +2,7 @@
 
 
 [[projects]]
+  digest = "1:638ec77d8b1e972eeec716b05f74898718be763b69feeb9d6fbdebdfc5150e7a"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -17,47 +18,66 @@
     "private/protocol/rest",
     "service/dynamodb",
     "service/dynamodb/dynamodbattribute",
-    "service/dynamodb/expression"
+    "service/dynamodb/expression",
   ]
+  pruneopts = ""
   revision = "ff1a530c31507c97cf5edbee226e604ca08661cc"
   version = "v2.0.0-preview.4"
 
 [[projects]]
+  digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
+  pruneopts = ""
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:10c7813de846fa10aad0ea9bca34a3c20815d51250e48ba1a3c3c7572184aea8"
+  name = "github.com/gofrs/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "370558f003bfe29580cd0f698d8640daccdcc45c"
+  version = "v3.1.1"
+
+[[projects]]
+  digest = "1:6f49eae0c1e5dab1dafafee34b207aeb7a42303105960944828c2079b92fc88e"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
+  pruneopts = ""
   revision = "0b12d6b5"
 
 [[projects]]
+  digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
+  pruneopts = ""
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
-  name = "github.com/satori/go.uuid"
-  packages = ["."]
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
-
-[[projects]]
+  digest = "1:c587772fb8ad29ad4db67575dad25ba17a51f072ff18a22b4f0257a4d9c24f75"
   name = "github.com/stretchr/testify"
   packages = [
     "assert",
     "require",
-    "suite"
+    "suite",
   ]
+  pruneopts = ""
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
   version = "v1.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "85b80b5135459a2e7e2c037a386c51c4210d0e091e1e37140f8884823fa8099f"
+  input-imports = [
+    "github.com/aws/aws-sdk-go-v2/aws",
+    "github.com/aws/aws-sdk-go-v2/aws/defaults",
+    "github.com/aws/aws-sdk-go-v2/service/dynamodb",
+    "github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute",
+    "github.com/aws/aws-sdk-go-v2/service/dynamodb/expression",
+    "github.com/gofrs/uuid",
+    "github.com/stretchr/testify/suite",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
