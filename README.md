@@ -10,7 +10,7 @@ go get github/flowup-labs/godynamo
 
 ### Quickstart
 dynamo-access take name of props according json tags
-```
+```go
 type person struct {
 	godynamo.Model
 
