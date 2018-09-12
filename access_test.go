@@ -1,13 +1,14 @@
 package godynamo
 
 import (
-	"github.com/stretchr/testify/suite"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/defaults"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"fmt"
-	"testing"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/expression"
+	"github.com/stretchr/testify/suite"
+	"strconv"
+	"testing"
 )
 
 type AccessSuite struct {
@@ -24,7 +25,7 @@ func (t *AccessSuite) SetupSuite() {
 	config.Credentials = aws.StaticCredentialsProvider{
 		Value: aws.Credentials{
 			AccessKeyID: "AKID", SecretAccessKey: "SECRET", SessionToken: "SESSION",
-			Source:      "unit test credentials",
+			Source: "unit test credentials",
 		},
 	}
 
@@ -306,6 +307,26 @@ func (t *AccessSuite) TestScan() {
 	//	t.Nil(err)
 	//}
 	//t.Equal(a, &item)
+}
+
+func (t *AccessSuite) TestGetItems() {
+	// create 5 items
+	for i := 0; i <= 5; i++ {
+		item := &aaa{
+			Model: Model{
+				Id: strconv.Itoa(i),
+			},
+		}
+		if err := t.access.Create(item); err != nil {
+			t.Nil(err)
+		}
+	}
+	var items []aaa
+	t.Nil(t.access.GetItems(&items, "id", []string{"1", "3", "5", "7"}))
+	t.Equal(3, len(items))
+
+	var wrong aaa
+	t.Equal(ErrNotSlice, t.access.GetItems(&wrong, "id", []string{"1"}))
 }
 
 func (t *AccessSuite) TestCreateRelationship() {

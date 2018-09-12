@@ -1,9 +1,9 @@
 package godynamo
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"errors"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
 type DynamoAccess struct {
@@ -21,6 +21,6 @@ var (
 	ErrNotFound         = errors.New("item not found")
 	ErrNotSupportedType = errors.New("not supported type")
 	ErrSlice            = errors.New("slice is prohibited")
-
-	NoPaging = map[string]dynamodb.AttributeValue{}
+	ErrNotSlice         = errors.New("item has to be slice")
+	NoPaging            = map[string]dynamodb.AttributeValue{}
 )
