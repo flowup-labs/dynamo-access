@@ -429,6 +429,41 @@ func (a *DynamoAccess) GetItem(item interface{}, key, value string) error {
 	return nil
 }
 
+// GetItem, find item by attribute (key)
+func (a *DynamoAccess) GetItems(item interface{}, key string, values []string) error {
+	if len(values) < 1 {
+		return nil
+	}
+	tableName, slice, err := a.tableName(item)
+	if err != nil {
+		return err
+	}
+	if !slice {
+		return ErrNotSlice
+	}
+	reqItems := make(map[string]dynamodb.KeysAndAttributes)
+	keys := make([]map[string]dynamodb.AttributeValue, 0, len(values))
+	for _, value := range values {
+		keys = append(keys, map[string]dynamodb.AttributeValue{
+			key: {S: aws.String(value)},
+		})
+	}
+	reqItems[*tableName] = dynamodb.KeysAndAttributes{
+		Keys: keys,
+	}
+
+	result, err := a.svc.BatchGetItemRequest(&dynamodb.BatchGetItemInput{
+		RequestItems: reqItems,
+	}).Send()
+	if err != nil {
+		return err
+	}
+	if err := dynamodbattribute.UnmarshalListOfMaps(result.Responses[*tableName], item); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ScanByAttribute, find item by attribute
 func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
 	return a.ScanByFilter(item, expression.Name(key).Equal(expression.Value(value)))
