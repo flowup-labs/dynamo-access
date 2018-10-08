@@ -156,7 +156,7 @@ func (t *AccessSuite) TestScanOneItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
+	if _, err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -195,7 +195,7 @@ func (t *AccessSuite) TestUpdateItem() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
+	if _, err := t.access.ScanByAttribute(&item, "id", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -226,7 +226,7 @@ func (t *AccessSuite) TestScanOneItemByIndex() {
 
 	// find item
 	items := []ccc{}
-	if err := t.access.ScanByAttribute(&items, "dId", c.DId); err != nil {
+	if _, err := t.access.ScanByAttribute(&items, "dId", c.DId); err != nil {
 		t.Nil(err)
 	}
 
@@ -273,7 +273,7 @@ func (t *AccessSuite) TestScan() {
 
 	// find item
 	item := aaa{}
-	if err := t.access.ScanByAttribute(&item, "aac[0].bba", "foo1"); err != nil {
+	if _, err := t.access.ScanByAttribute(&item, "aac[0].bba", "foo1"); err != nil {
 		t.Nil(err)
 	}
 
@@ -281,7 +281,7 @@ func (t *AccessSuite) TestScan() {
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanByFilter(&item, expression.Name("aad").Contains("var8")); err != nil {
+	if _, err := t.access.ScanByFilter(&item, expression.Name("aad").Contains("var8")); err != nil {
 		t.Nil(err)
 	}
 
@@ -289,21 +289,21 @@ func (t *AccessSuite) TestScan() {
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanByFilter(&item, expression.Name("aae.bar10").AttributeExists()); err != nil {
+	if _, err := t.access.ScanByFilter(&item, expression.Name("aae.bar10").AttributeExists()); err != nil {
 		t.Nil(err)
 	}
 	t.Equal(a, &item)
 
 	// find item
 	item = aaa{}
-	if err := t.access.ScanByFilter(&item, expression.Name("aaf.bar11").AttributeExists()); err != nil {
+	if _, err := t.access.ScanByFilter(&item, expression.Name("aaf.bar11").AttributeExists()); err != nil {
 		t.Nil(err)
 	}
 	t.Equal(a, &item)
 
 	////// find item
 	//item = aaa{}
-	//if err := t.access.Scan(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
+	//if _, err := t.access.Scan(&item, expression.Name("aac.bba").Contains("foo1")); err != nil {
 	//	t.Nil(err)
 	//}
 	//t.Equal(a, &item)
@@ -355,7 +355,7 @@ func (t *AccessSuite) TestCreateRelationship() {
 	t.Nil(err)
 
 	item := bbb{}
-	if err := t.access.ScanByAttribute(&item, "cId", a.Id); err != nil {
+	if _, err := t.access.ScanByAttribute(&item, "cId", a.Id); err != nil {
 		t.Nil(err)
 	}
 
@@ -393,7 +393,7 @@ func (t *AccessSuite) TestScanRange() {
 
 	items := []bbb{}
 
-	if err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
+	if _, err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(5), expression.Value(16))); err != nil {
 		t.Nil(err)
 	}
 
@@ -438,7 +438,7 @@ func (t *AccessSuite) TestDeleteItem() {
 
 	items := []bbb{}
 
-	if err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(0), expression.Value(255))); err != nil {
+	if _, err := t.access.ScanByFilter(&items, expression.Name("bbd").Between(expression.Value(0), expression.Value(255))); err != nil {
 		t.Nil(err)
 	}
 

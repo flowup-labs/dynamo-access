@@ -465,16 +465,16 @@ func (a *DynamoAccess) GetItems(item interface{}, key string, values []string) e
 }
 
 // ScanByAttribute, find item by attribute
-func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string) error {
+func (a *DynamoAccess) ScanByAttribute(item interface{}, key, value string)  (*dynamodb.ScanOutput, error) {
 	return a.ScanByFilter(item, expression.Name(key).Equal(expression.Value(value)))
 }
 
-func (a *DynamoAccess) ScanByFilter(item interface{}, filt expression.ConditionBuilder) error {
+func (a *DynamoAccess) ScanByFilter(item interface{}, filt expression.ConditionBuilder)  (*dynamodb.ScanOutput, error) {
 	expr, err := expression.NewBuilder().
 		WithFilter(filt.And(expression.Name("deleted").Equal(expression.Value(0)))).
 		Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	return a.Scan(item, RequestInput{
@@ -482,10 +482,10 @@ func (a *DynamoAccess) ScanByFilter(item interface{}, filt expression.ConditionB
 	})
 }
 
-func (a *DynamoAccess) Scan(item interface{}, input RequestInput) error {
+func (a *DynamoAccess) Scan(item interface{}, input RequestInput) (*dynamodb.ScanOutput, error) {
 	tableName, slice, err := a.tableName(item)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	scanInput := &dynamodb.ScanInput{
@@ -494,7 +494,7 @@ func (a *DynamoAccess) Scan(item interface{}, input RequestInput) error {
 		TableName:                 tableName,
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if input.Expr.Filter() != nil && *input.Expr.Filter() != "" {
@@ -515,20 +515,20 @@ func (a *DynamoAccess) Scan(item interface{}, input RequestInput) error {
 
 	result, err := a.svc.ScanRequest(scanInput).Send()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !slice && len(result.Items) > 0 {
 		if err := dynamodbattribute.UnmarshalMap(result.Items[0], item); err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, item); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 // tableName return name of struct, and flag if is slice or not
